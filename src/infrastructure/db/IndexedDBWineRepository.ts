@@ -1,0 +1,129 @@
+import { Wine } from '../../core/entities/Wine';
+import { IWineRepository } from '../../core/repositories/IWineRepository';
+
+export class IndexedDBWineRepository implements IWineRepository {
+  private db: IDBDatabase | null = null;
+  private dbName = 'VintoryDB';
+  private dbVersion = 1;
+
+  private initDB(): Promise<IDBDatabase> {
+    if (this.db) return Promise.resolve(this.db);
+
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.dbVersion);
+
+      request.onupgradeneeded = (e: IDBVersionChangeEvent) => {
+        const db = (e.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains('wines')) {
+          db.createObjectStore('wines', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('settings')) {
+          db.createObjectStore('settings');
+        }
+      };
+
+      request.onsuccess = (e) => {
+        this.db = (e.target as IDBOpenDBRequest).result;
+        resolve(this.db);
+      };
+
+      request.onerror = (e) => {
+        reject(new Error(`Database opening error: ${request.error?.message}`));
+      };
+    });
+  }
+
+  async getAll(): Promise<Wine[]> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('wines', 'readonly');
+      const store = transaction.objectStore('wines');
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result as Wine[]);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async save(wine: Wine): Promise<void> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('wines', 'readwrite');
+      const store = transaction.objectStore('wines');
+      const request = store.put(wine);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('wines', 'readwrite');
+      const store = transaction.objectStore('wines');
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveBatch(wines: Wine[]): Promise<void> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('wines', 'readwrite');
+      const store = transaction.objectStore('wines');
+      const clearReq = store.clear();
+
+      clearReq.onsuccess = () => {
+        if (wines.length === 0) {
+          resolve();
+          return;
+        }
+        let completed = 0;
+        let failed = false;
+
+        wines.forEach((wine) => {
+          const req = store.put(wine);
+          req.onsuccess = () => {
+            completed++;
+            if (completed === wines.length && !failed) {
+              resolve();
+            }
+          };
+          req.onerror = () => {
+            failed = true;
+            reject(req.error);
+          };
+        });
+      };
+
+      clearReq.onerror = () => reject(clearReq.error);
+    });
+  }
+
+  async getSetting(key: string): Promise<string> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('settings', 'readonly');
+      const store = transaction.objectStore('settings');
+      const request = store.get(key);
+
+      request.onsuccess = () => resolve((request.result as string) || '');
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveSetting(key: string, value: string): Promise<void> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('settings', 'readwrite');
+      const store = transaction.objectStore('settings');
+      const request = store.put(value, key);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+}

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vintory – Dein exklusiver Weinkeller</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8c1c2e">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <h1 class="gradient-text">Vintory</h1>
+                <p style="font-size: 0.8rem; opacity: 0.7;">Digital Wine Collection</p>
+            </div>
+            <div class="actions" style="display: flex; gap: 0.5rem; align-items: center;">
+                <button id="btn-scan-wine" class="btn btn-secondary" title="Etikett scannen">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span>Schnell-Scan</span>
+                </button>
+                <button id="btn-add-wine" class="btn btn-primary">+ Wein hinzufügen</button>
+                <button id="btn-settings" class="btn" style="background: hsla(0,0%,100%,0.05); color: white; padding: 0.75rem;" title="Einstellungen">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <section class="filters-bar" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center;">
+            <input type="text" id="search-input" placeholder="Suche..." style="max-width: 300px;">
+            <select id="type-filter" style="max-width: 150px;">
+                <option value="all">Alle Typen</option>
+                <option value="Rotwein">Rotwein</option>
+                <option value="Weißwein">Weißwein</option>
+                <option value="Rosé">Rosé</option>
+                <option value="Schaumwein">Schaumwein</option>
+            </select>
+            <button id="btn-show-favorites" class="btn" style="background: hsla(0,0%,100%,0.05); color: var(--color-secondary);">❤ Favoriten</button>
+            <div style="flex-grow: 1;"></div>
+            <label style="font-size: 0.8rem; color: var(--color-text-muted);">Sortieren nach:</label>
+            <select id="sort-select" style="max-width: 150px;">
+                <option value="date-desc">Neu hinzugefügt</option>
+                <option value="year-desc">Jahrgang (Neu -> Alt)</option>
+                <option value="year-asc">Jahrgang (Alt -> Neu)</option>
+                <option value="price-desc">Preis (Hoch -> Niedrig)</option>
+                <option value="rating-desc">Beste Bewertung</option>
+                <option value="name-asc">Alphabet (A-Z)</option>
+            </select>
+        </section>
+
+        <main id="shelf" class="shelf-grid">
+            <!-- Wine cards will be rendered here -->
+        </main>
+
+        <footer style="margin-top: 4rem; padding: 2rem; border-top: 1px solid var(--color-border); display: flex; justify-content: center; gap: 2rem;">
+            <button id="btn-export" class="btn" style="background: hsla(0,0%,100%,0.05); color: var(--color-text-muted);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Export / Backup
+            </button>
+            <button id="btn-import" class="btn" style="background: hsla(0,0%,100%,0.05); color: var(--color-text-muted);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                Import / Restore
+            </button>
+            <input type="file" id="input-import" style="display: none;" accept=".json">
+        </footer>
+    </div>
+
+    <!-- Modal for Adding/Editing Wine -->
+    <div id="modal-wine" class="modal-overlay">
+        <div class="modal">
+            <h2 id="modal-title" style="margin-bottom: 1.5rem;">Wein hinzufügen</h2>
+            <form id="wine-form">
+                <div class="form-group">
+                    <label for="wine-name">Name des Weins</label>
+                    <input type="text" id="wine-name" required placeholder="z.B. Chateau Margaux">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="wine-type">Typ</label>
+                        <select id="wine-type" required>
+                            <option value="Rotwein">Rotwein</option>
+                            <option value="Weißwein">Weißwein</option>
+                            <option value="Rosé">Rosé</option>
+                            <option value="Schaumwein">Schaumwein</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="wine-year">Jahrgang</label>
+                        <input type="number" id="wine-year" placeholder="2018">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div class="form-group">
+                      <label for="wine-winery">Winzer</label>
+                      <input type="text" id="wine-winery" placeholder="e.g. Domaine de la Romanée-Conti">
+                  </div>
+                  <div class="form-group">
+                      <label for="wine-region">Region</label>
+                      <input type="text" id="wine-region" placeholder="e.g. Burgund">
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div class="form-group">
+                      <label for="wine-grape">Rebsorte (Traube)</label>
+                      <input type="text" id="wine-grape" placeholder="e.g. Pinot Noir">
+                  </div>
+                  <div class="form-group">
+                      <label for="wine-price">Preis (€)</label>
+                      <input type="number" id="wine-price" step="0.01" placeholder="e.g. 89.00">
+                  </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div class="form-group">
+                      <label for="wine-quantity">Bestand (Flaschen)</label>
+                      <input type="number" id="wine-quantity" value="1" min="0">
+                  </div>
+                  <div class="form-group">
+                      <label for="wine-rating">Tasting Score (1-5)</label>
+                      <input type="number" id="wine-rating" min="0" max="5" step="0.5" value="0">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Flaschenfoto</label>
+                    <video id="camera-preview" autoplay playsinline></video>
+                    <canvas id="photo-canvas" style="display: none;"></canvas>
+                    <div style="display: flex; gap: 1rem;">
+                      <button type="button" id="btn-camera" class="btn" style="flex: 1; background: hsla(0,0%,100%,0.1); color: white;">Kamera öffnen</button>
+                      <button type="button" id="btn-snap" class="btn btn-secondary" style="flex: 1; display: none;">Foto machen</button>
+                    </div>
+                    <input type="hidden" id="wine-image-data">
+                    <img id="image-preview" style="width: 100%; margin-top: 1rem; border-radius: 12px; display: none;">
+                </div>
+
+                <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button type="button" id="btn-cancel" class="btn" style="flex: 1; background: hsla(0,0%,100%,0.05); color: var(--color-text-muted);">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="modal-settings" class="modal-overlay">
+        <div class="modal">
+            <h2 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Einstellungen
+            </h2>
+            <form id="settings-form">
+                <div class="form-group">
+                    <label for="gemini-api-key">Gemini API Key</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="password" id="gemini-api-key" placeholder="AIzaSy...">
+                        <button type="button" id="btn-toggle-key" style="position: absolute; right: 10px; background: none; border: none; color: var(--color-text-muted); cursor: pointer;">Anzeigen</button>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--color-text-muted); margin-top: 0.5rem; line-height: 1.4;">
+                        Erforderlich für das automatische Erkennen von Weinetiketten. Einen kostenlosen Key erhältst du in der <a href="https://aistudio.google.com/" target="_blank" style="color: var(--color-secondary); text-decoration: underline;">Google AI Studio</a>.<br><br>
+                        <strong>Alternative:</strong> Kann auch als Umgebungsvariable über <code>window.VINTORY_CONFIG.GEMINI_API_KEY</code> bereitgestellt werden.
+                    </p>
+                </div>
+                <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" id="btn-settings-cancel" class="btn" style="flex: 1; background: hsla(0,0%,100%,0.05); color: var(--color-text-muted);">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2;">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scanner Modal -->
+    <div id="modal-scanner" class="modal-overlay">
+        <div class="modal" style="max-width: 600px; padding: 1.5rem; overflow: hidden; display: flex; flex-direction: column;">
+            <h2 style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>Etikett scannen</span>
+                <button type="button" id="btn-scanner-close" style="background: none; border: none; color: var(--color-text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </h2>
+            <div class="scanner-container" style="position: relative; width: 100%; border-radius: 16px; overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center;">
+                <video id="scanner-preview" autoplay playsinline style="width: 100%; height: 350px; object-fit: cover;"></video>
+                <canvas id="scanner-canvas" style="display: none;"></canvas>
+                <div class="scanner-laser"></div>
+                
+                <!-- Overlay scanning status -->
+                <div id="scanner-status-overlay" class="scanner-status" style="display: none;">
+                    <div class="loading-ring"></div>
+                    <p id="scanner-status-text">Analysiere Etikett...</p>
+                </div>
+            </div>
+            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                <button type="button" id="btn-scanner-snap" class="btn btn-primary" style="flex: 1; justify-content: center;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Foto aufnehmen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').then(reg => {
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New version found! Skip waiting and reload.
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            });
+          });
+        });
+
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            // Only reload if no modal is currently open.
+            const modal = document.getElementById('modal-wine');
+            if (modal && !modal.classList.contains('active')) {
+              window.location.reload();
+              refreshing = true;
+            }
+          }
+        });
+      }
+    </script>
+</body>
+</html>

@@ -1,174 +1,18 @@
 <!DOCTYPE html>
 <html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vintory – Dein exklusiver Weinkeller</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#8c1c2e">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <meta name="theme-color" content="#8c1c2e" />
+    <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <div class="logo">
-                <h1 class="gradient-text">Vintory</h1>
-                <p style="font-size: 0.8rem; opacity: 0.7;">Digital Wine Collection</p>
-            </div>
-            <div class="actions">
-                <button id="btn-add-wine" class="btn btn-primary">+ Wein hinzufügen</button>
-            </div>
-        </header>
-
-        <section class="filters-bar" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center;">
-            <input type="text" id="search-input" placeholder="Suche..." style="max-width: 300px;">
-            <select id="type-filter" style="max-width: 150px;">
-                <option value="all">Alle Typen</option>
-                <option value="Rotwein">Rotwein</option>
-                <option value="Weißwein">Weißwein</option>
-                <option value="Rosé">Rosé</option>
-                <option value="Schaumwein">Schaumwein</option>
-            </select>
-            <button id="btn-show-favorites" class="btn" style="background: hsla(0,0%,100%,0.05); color: var(--color-secondary);">❤ Favoriten</button>
-            <div style="flex-grow: 1;"></div>
-            <label style="font-size: 0.8rem; color: var(--color-text-muted);">Sortieren nach:</label>
-            <select id="sort-select" style="max-width: 150px;">
-                <option value="date-desc">Neu hinzugefügt</option>
-                <option value="year-desc">Jahrgang (Neu -> Alt)</option>
-                <option value="year-asc">Jahrgang (Alt -> Neu)</option>
-                <option value="price-desc">Preis (Hoch -> Niedrig)</option>
-                <option value="rating-desc">Beste Bewertung</option>
-                <option value="name-asc">Alphabet (A-Z)</option>
-            </select>
-        </section>
-
-        <main id="shelf" class="shelf-grid">
-            <!-- Wine cards will be rendered here -->
-        </main>
-
-        <footer style="margin-top: 4rem; padding: 2rem; border-top: 1px solid var(--color-border); display: flex; justify-content: center; gap: 2rem;">
-            <button id="btn-export" class="btn" style="background: hsla(0,0%,100%,0.05); color: var(--color-text-muted);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                Export / Backup
-            </button>
-            <button id="btn-import" class="btn" style="background: hsla(0,0%,100%,0.05); color: var(--color-text-muted);">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                Import / Restore
-            </button>
-            <input type="file" id="input-import" style="display: none;" accept=".json">
-        </footer>
-    </div>
-
-    <!-- Modal for Adding/Editing Wine -->
-    <div id="modal-wine" class="modal-overlay">
-        <div class="modal">
-            <h2 id="modal-title" style="margin-bottom: 1.5rem;">Wein hinzufügen</h2>
-            <form id="wine-form">
-                <div class="form-group">
-                    <label for="wine-name">Name des Weins</label>
-                    <input type="text" id="wine-name" required placeholder="z.B. Chateau Margaux">
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label for="wine-type">Typ</label>
-                        <select id="wine-type" required>
-                            <option value="Rotwein">Rotwein</option>
-                            <option value="Weißwein">Weißwein</option>
-                            <option value="Rosé">Rosé</option>
-                            <option value="Schaumwein">Schaumwein</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="wine-year">Jahrgang</label>
-                        <input type="number" id="wine-year" placeholder="2018">
-                    </div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                  <div class="form-group">
-                      <label for="wine-winery">Winzer</label>
-                      <input type="text" id="wine-winery" placeholder="e.g. Domaine de la Romanée-Conti">
-                  </div>
-                  <div class="form-group">
-                      <label for="wine-region">Region</label>
-                      <input type="text" id="wine-region" placeholder="e.g. Burgund">
-                  </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                  <div class="form-group">
-                      <label for="wine-grape">Rebsorte (Traube)</label>
-                      <input type="text" id="wine-grape" placeholder="e.g. Pinot Noir">
-                  </div>
-                  <div class="form-group">
-                      <label for="wine-price">Preis (€)</label>
-                      <input type="number" id="wine-price" step="0.01" placeholder="e.g. 89.00">
-                  </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                  <div class="form-group">
-                      <label for="wine-quantity">Bestand (Flaschen)</label>
-                      <input type="number" id="wine-quantity" value="1" min="0">
-                  </div>
-                  <div class="form-group">
-                      <label for="wine-rating">Tasting Score (1-5)</label>
-                      <input type="number" id="wine-rating" min="0" max="5" step="0.5" value="0">
-                  </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Flaschenfoto</label>
-                    <video id="camera-preview" autoplay playsinline></video>
-                    <canvas id="photo-canvas" style="display: none;"></canvas>
-                    <div style="display: flex; gap: 1rem;">
-                      <button type="button" id="btn-camera" class="btn" style="flex: 1; background: hsla(0,0%,100%,0.1); color: white;">Kamera öffnen</button>
-                      <button type="button" id="btn-snap" class="btn btn-secondary" style="flex: 1; display: none;">Foto machen</button>
-                    </div>
-                    <input type="hidden" id="wine-image-data">
-                    <img id="image-preview" style="width: 100%; margin-top: 1rem; border-radius: 12px; display: none;">
-                </div>
-
-                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                    <button type="button" id="btn-cancel" class="btn" style="flex: 1; background: hsla(0,0%,100%,0.05); color: var(--color-text-muted);">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary" style="flex: 2;">Speichern</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="main.js"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').then(reg => {
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New version found! Skip waiting and reload.
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
-                }
-              });
-            });
-          });
-        });
-
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (!refreshing) {
-            // Only reload if no modal is currently open.
-            const modal = document.getElementById('modal-wine');
-            if (modal && !modal.classList.contains('active')) {
-              window.location.reload();
-              refreshing = true;
-            }
-          }
-        });
-      }
-    </script>
-</body>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#0a0506]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
