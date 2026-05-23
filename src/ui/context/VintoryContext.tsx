@@ -230,7 +230,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
           winery: wineData.winery || 'Unbekanntes Weingut',
           region: wineData.region || 'Region unbekannt',
           grape: wineData.grape || '',
-          price: '',
+          price: wineData.suggestedPrice || '',
           quantity: 1,
           rating: 3,
           image: item.frontImage,

@@ -164,7 +164,19 @@ const VintoryAppContent: React.FC = () => {
       setScannedImage(imageBase64);
     } else {
       setSelectedWine(null);
-      setScannedData(ocrData);
+      if (ocrData) {
+        setScannedData({
+          name: ocrData.name,
+          type: ocrData.type,
+          year: ocrData.year,
+          winery: ocrData.winery,
+          region: ocrData.region,
+          grape: ocrData.grape,
+          price: ocrData.suggestedPrice || ''
+        });
+      } else {
+        setScannedData(null);
+      }
       setScannedImage(imageBase64);
       setWineModalOpen(true);
     }

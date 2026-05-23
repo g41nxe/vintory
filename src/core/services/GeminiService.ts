@@ -5,6 +5,7 @@ export interface ExtractedWineData {
   winery: string;
   region: string;
   grape: string;
+  suggestedPrice?: string;
 }
 
 export class GeminiService {
@@ -17,7 +18,7 @@ export class GeminiService {
 
     const parts: any[] = [
       {
-        text: "Du bist ein Sommelier-Assistent. Analysiere dieses Foto (oder diese Fotos von Vorderseite und optional Rückseite) eines Weinetiketts und extrahiere alle Details. Nutze insbesondere die Rückseite (Backlabel), falls vorhanden, um Rebsorten, Winzer, Region oder andere Spezifikationen präziser zu erfassen. Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt ohne Markdown-Formatierung oder Code-Blöcke (kein ```json). Falls ein Feld nicht erkennbar ist, verwende null. Typ MUSS genau einer der folgenden Werte sein: 'Rotwein', 'Weißwein', 'Rosé', 'Schaumwein' (Standard ist 'Rotwein'). Das JSON-Format lautet:\n{\n  \"name\": \"Name des Weins (ohne Jahrgang/Winzer)\",\n  \"type\": \"Rotwein\" | \"Weißwein\" | \"Rosé\" | \"Schaumwein\",\n  \"year\": 2018 (Zahl oder null),\n  \"winery\": \"Name des Winzers / Weinguts\",\n  \"region\": \"Anbauregion\",\n  \"grape\": \"Rebsorte (z.B. Riesling, Pinot Noir)\"\n}"
+        text: "Du bist ein Sommelier-Assistent. Analysiere dieses Foto (oder diese Fotos von Vorderseite und optional Rückseite) eines Weinetiketts, extrahiere alle Details und schätze den aktuellen Marktpreis (oder eine realistische Preisspanne) in Euro (€) basierend auf dem erkannten Wein und Jahrgang. Nutze insbesondere die Rückseite (Backlabel), falls vorhanden, um Rebsorten, Winzer, Region oder andere Spezifikationen präziser zu erfassen. Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt ohne Markdown-Formatierung oder Code-Blöcke (kein ```json). Falls ein Feld nicht erkennbar ist, verwende null. Typ MUSS genau einer der folgenden Werte sein: 'Rotwein', 'Weißwein', 'Rosé', 'Schaumwein' (Standard ist 'Rotwein'). Das JSON-Format lautet:\n{\n  \"name\": \"Name des Weins (ohne Jahrgang/Winzer)\",\n  \"type\": \"Rotwein\" | \"Weißwein\" | \"Rosé\" | \"Schaumwein\",\n  \"year\": 2018 (Zahl oder null),\n  \"winery\": \"Name des Winzers / Weinguts\",\n  \"region\": \"Anbauregion\",\n  \"grape\": \"Rebsorte (z.B. Riesling, Pinot Noir)\",\n  \"suggestedPrice\": \"z.B. 45.00 oder 120.00 - 140.00 (nur Zahlen und eventuell Spanne, ohne Währungssymbol, null falls unklar)\"\n}"
       },
       {
         inlineData: {
@@ -75,6 +76,7 @@ export class GeminiService {
         winery: parsed.winery || '',
         region: parsed.region || '',
         grape: parsed.grape || '',
+        suggestedPrice: parsed.suggestedPrice || '',
       };
     } catch (e) {
       console.error("Failed to parse Gemini JSON:", textResponse, e);

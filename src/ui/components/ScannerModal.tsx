@@ -193,13 +193,13 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
 
         {/* Modal Title */}
         <div className="mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center items-start gap-2">
             {mode === 'ocr' && (
-              <span className="text-xs bg-[#8c1c2e] text-white px-2.5 py-0.5 rounded-full font-bold">
+              <span className="text-xs bg-[#8c1c2e] text-white px-2.5 py-0.5 rounded-full font-bold shrink-0">
                 Schritt {step === 'front' ? '1 von 2' : '2 von 2'}
               </span>
             )}
-            <h2 className="text-lg font-bold text-[#f3e8eb] tracking-tight">{getStepTitle()}</h2>
+            <h2 className="text-base sm:text-lg font-bold text-[#f3e8eb] tracking-tight">{getStepTitle()}</h2>
           </div>
           <p className="text-xs text-gray-400 mt-1">{getStepSubtitle()}</p>
         </div>
@@ -271,10 +271,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
         </div>
 
         {/* Action Button Footer */}
-        <div className="flex justify-between items-center mt-5 border-t border-white/5 pt-4">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mt-5 border-t border-white/5 pt-4">
           
           {/* Left progress info / front thumbnail */}
-          <div className="flex items-center gap-3 max-w-[50%]">
+          <div className="flex items-center gap-3 w-full sm:max-w-[50%]">
             {frontImage && step === 'back' ? (
               <div className="flex items-center gap-2">
                 <div className="w-10 h-10 rounded-lg border border-[#d4af37] overflow-hidden bg-black/40 flex-shrink-0">
@@ -288,19 +288,19 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
                 </div>
               </div>
             ) : (
-              <p className="text-[10px] text-gray-500">
+              <p className="text-[10px] text-gray-500 leading-normal">
                 Bilder werden verschlüsselt und lokal im Webbrowser verarbeitet.
               </p>
             )}
           </div>
 
           {/* Capture & Skip Buttons */}
-          <div className="flex gap-2.5">
+          <div className="flex gap-2.5 justify-end w-full sm:w-auto">
             {/* Skip back-side button */}
             {step === 'back' && mode === 'ocr' && !loading && (
               <button
                 onClick={handleSkipBackSide}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-xl text-gray-300 transition-all"
+                className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-xl text-gray-300 transition-all cursor-pointer flex-1 sm:flex-none"
                 title="Rückseite überspringen und direkt auswerten"
               >
                 Überspringen
@@ -311,10 +311,12 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
             <button
               onClick={handleCapture}
               disabled={loading || !stream}
-              className="flex items-center gap-2 px-6 py-3 bg-[#8c1c2e] hover:bg-[#8c1c2e]/90 text-white font-bold rounded-xl text-sm transition-all shadow-[0_4px_15px_rgba(140,28,46,0.3)] disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-[#8c1c2e] hover:bg-[#8c1c2e]/90 text-white font-bold rounded-xl text-sm transition-all shadow-[0_4px_15px_rgba(140,28,46,0.3)] disabled:opacity-50 flex-1 sm:flex-none cursor-pointer"
             >
               <Camera className="w-4 h-4" />
-              {step === 'front' ? 'Foto aufnehmen' : 'Rückseite aufnehmen'}
+              <span className="whitespace-nowrap">
+                {step === 'front' ? 'Foto aufnehmen' : 'Rückseite aufnehmen'}
+              </span>
             </button>
           </div>
 

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Star, Heart, Camera, Upload } from 'lucide-react';
 import { Wine } from '../../core/entities/Wine';
+import { useVintory } from '../context/VintoryContext';
 
 interface WineModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export const WineModal: React.FC<WineModalProps> = ({
   onSave,
   onTriggerCamera
 }) => {
+  const { wines } = useVintory();
+
   const [formData, setFormData] = useState<Wine>({
     id: '',
     name: '',
@@ -39,6 +42,16 @@ export const WineModal: React.FC<WineModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const duplicateWine = useMemo(() => {
+    if (!formData.name.trim()) return null;
+    return wines.find(w => 
+      w.id !== formData.id &&
+      w.name.trim().toLowerCase() === formData.name.trim().toLowerCase() &&
+      w.winery.trim().toLowerCase() === formData.winery.trim().toLowerCase() &&
+      w.year === formData.year
+    );
+  }, [wines, formData.name, formData.winery, formData.year, formData.id]);
+
   // Initialize fields on open
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +68,7 @@ export const WineModal: React.FC<WineModalProps> = ({
           winery: scannedData.winery || '',
           region: scannedData.region || '',
           grape: scannedData.grape || '',
-          price: '',
+          price: scannedData.price || '',
           quantity: 1,
           rating: 3,
           image: scannedImage || '',
@@ -238,6 +251,34 @@ export const WineModal: React.FC<WineModalProps> = ({
             </div>
 
           </div>
+
+          {/* Duplicate Wine Warning Banner */}
+          {duplicateWine && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-start gap-3 animate-fade-in text-xs">
+              <span className="text-base mt-0.5">⚠️</span>
+              <div className="flex-grow">
+                <p className="font-bold text-amber-300">Identischer Wein bereits im Keller</p>
+                <p className="text-gray-400 mt-1">
+                  <strong>{duplicateWine.name}</strong> ({duplicateWine.year || 'Ohne Jahrgang'}) von <strong>{duplicateWine.winery || 'Unbekannter Winzer'}</strong> ist bereits in deinem Keller vorhanden.
+                </p>
+                <p className="text-gray-400 mt-1">
+                  Aktueller Bestand: {duplicateWine.quantity} {duplicateWine.quantity === 1 ? 'Flasche' : 'Flaschen'} {duplicateWine.price ? `| Preis: ${duplicateWine.price} €` : ''}
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await onSave({ ...duplicateWine, quantity: duplicateWine.quantity + 1 });
+                      onClose();
+                    }}
+                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer"
+                  >
+                    Bestand um 1 Flasche erhöhen (+1)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Form Grid Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
