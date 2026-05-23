@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Star, Heart, Camera, Upload, Check } from 'lucide-react';
+import { X, Star, Heart, Camera, Upload } from 'lucide-react';
 import { Wine } from '../../core/entities/Wine';
-import { useCamera } from '../hooks/useCamera';
 
 interface WineModalProps {
   isOpen: boolean;
@@ -10,6 +9,7 @@ interface WineModalProps {
   scannedImage: string;
   scannedData: Partial<Wine> | null;
   onSave: (wine: Wine) => Promise<void>;
+  onTriggerCamera: () => void;
 }
 
 export const WineModal: React.FC<WineModalProps> = ({
@@ -18,7 +18,8 @@ export const WineModal: React.FC<WineModalProps> = ({
   wine,
   scannedImage,
   scannedData,
-  onSave
+  onSave,
+  onTriggerCamera
 }) => {
   const [formData, setFormData] = useState<Wine>({
     id: '',
@@ -35,17 +36,12 @@ export const WineModal: React.FC<WineModalProps> = ({
     isFavorite: false
   });
 
-  const { stream, startCamera, stopCamera } = useCamera();
-  const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [cameraActive, setCameraActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Initialize fields on open
   useEffect(() => {
     if (isOpen) {
-      setCameraActive(false);
-      
       if (wine) {
         // Edit mode
         setFormData({ ...wine });
@@ -82,17 +78,15 @@ export const WineModal: React.FC<WineModalProps> = ({
           isFavorite: false
         });
       }
-    } else {
-      stopCamera();
     }
-  }, [isOpen, wine, scannedData, scannedImage, stopCamera]);
+  }, [isOpen, wine, scannedData, scannedImage]);
 
-  // Bind video element to camera hook stream
+  // Support reactive image updates when user snaps a photo via overlay scanner!
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    if (isOpen && scannedImage) {
+      setFormData((prev) => ({ ...prev, image: scannedImage }));
     }
-  }, [stream]);
+  }, [isOpen, scannedImage]);
 
   if (!isOpen) return null;
 
@@ -110,57 +104,6 @@ export const WineModal: React.FC<WineModalProps> = ({
 
   const handleToggleFavorite = () => {
     setFormData((prev) => ({ ...prev, isFavorite: !prev.isFavorite }));
-  };
-
-  const handleToggleCamera = async () => {
-    if (cameraActive) {
-      stopCamera();
-      setCameraActive(false);
-    } else {
-      setCameraActive(true);
-      try {
-        await startCamera('environment');
-      } catch (err) {
-        alert("Kamera konnte nicht gestartet werden. Bitte versuche den Datei-Upload.");
-        setCameraActive(false);
-      }
-    }
-  };
-
-  const handleCapturePhoto = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const w = video.videoWidth || video.clientWidth;
-    const h = video.videoHeight || video.clientHeight;
-    
-    // Scale to max 600px for storage optimization
-    const maxDimension = 600;
-    let targetWidth = w;
-    let targetHeight = h;
-
-    if (w > maxDimension || h > maxDimension) {
-      if (w > h) {
-        targetWidth = maxDimension;
-        targetHeight = Math.round((h * maxDimension) / w);
-      } else {
-        targetHeight = maxDimension;
-        targetWidth = Math.round((w * maxDimension) / h);
-      }
-    }
-
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
-    
-    const base64 = canvas.toDataURL('image/jpeg', 0.7);
-    setFormData((prev) => ({ ...prev, image: base64 }));
-    
-    stopCamera();
-    setCameraActive(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,15 +195,7 @@ export const WineModal: React.FC<WineModalProps> = ({
             
             {/* Image Preview Box */}
             <div className="w-full aspect-video sm:aspect-square bg-black/35 rounded-xl border border-white/5 flex items-center justify-center overflow-hidden relative">
-              {cameraActive ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-              ) : formData.image ? (
+              {formData.image ? (
                 <img
                   src={formData.image}
                   alt="Wine Preview"
@@ -278,47 +213,28 @@ export const WineModal: React.FC<WineModalProps> = ({
             <div className="flex flex-col gap-3 w-full justify-center">
               <button
                 type="button"
-                onClick={handleToggleCamera}
-                className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                  cameraActive
-                    ? 'bg-red-900/20 text-red-400 border-red-500/30 hover:bg-red-900/30'
-                    : 'bg-white/5 text-white border-white/10 hover:bg-white/10'
-                }`}
+                onClick={onTriggerCamera}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-bold bg-white/5 text-white border border-white/10 hover:bg-white/10 transition-all"
               >
                 <Camera className="w-4 h-4" />
-                {cameraActive ? 'Kamera stoppen' : 'Kamera einschalten'}
+                Kamera einschalten
               </button>
 
-              {cameraActive && (
-                <button
-                  type="button"
-                  onClick={handleCapturePhoto}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#8c1c2e] hover:bg-[#8c1c2e]/90 border border-[#8c1c2e]/50 text-white text-xs font-bold rounded-xl transition-all"
-                >
-                  <Check className="w-4 h-4" />
-                  Foto schießen
-                </button>
-              )}
-
-              {!cameraActive && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold rounded-xl transition-all"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Datei hochladen
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                </>
-              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center gap-2 w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold rounded-xl transition-all"
+              >
+                <Upload className="w-4 h-4" />
+                Datei hochladen
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </div>
 
           </div>

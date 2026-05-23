@@ -8,12 +8,34 @@ export interface ExtractedWineData {
 }
 
 export class GeminiService {
-  async analyzeLabel(base64Image: string, apiKey: string): Promise<ExtractedWineData> {
+  async analyzeLabel(frontImageBase64: string, apiKey: string, backImageBase64?: string): Promise<ExtractedWineData> {
     if (!apiKey) {
       throw new Error("No Gemini API key provided.");
     }
 
-    const base64Data = base64Image.split(',')[1] || base64Image;
+    const frontBase64 = frontImageBase64.split(',')[1] || frontImageBase64;
+
+    const parts: any[] = [
+      {
+        text: "Du bist ein Sommelier-Assistent. Analysiere dieses Foto (oder diese Fotos von Vorderseite und optional Rückseite) eines Weinetiketts und extrahiere alle Details. Nutze insbesondere die Rückseite (Backlabel), falls vorhanden, um Rebsorten, Winzer, Region oder andere Spezifikationen präziser zu erfassen. Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt ohne Markdown-Formatierung oder Code-Blöcke (kein ```json). Falls ein Feld nicht erkennbar ist, verwende null. Typ MUSS genau einer der folgenden Werte sein: 'Rotwein', 'Weißwein', 'Rosé', 'Schaumwein' (Standard ist 'Rotwein'). Das JSON-Format lautet:\n{\n  \"name\": \"Name des Weins (ohne Jahrgang/Winzer)\",\n  \"type\": \"Rotwein\" | \"Weißwein\" | \"Rosé\" | \"Schaumwein\",\n  \"year\": 2018 (Zahl oder null),\n  \"winery\": \"Name des Winzers / Weinguts\",\n  \"region\": \"Anbauregion\",\n  \"grape\": \"Rebsorte (z.B. Riesling, Pinot Noir)\"\n}"
+      },
+      {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: frontBase64
+        }
+      }
+    ];
+
+    if (backImageBase64) {
+      const backBase64 = backImageBase64.split(',')[1] || backImageBase64;
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: backBase64
+        }
+      });
+    }
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -23,17 +45,7 @@ export class GeminiService {
       body: JSON.stringify({
         contents: [
           {
-            parts: [
-              {
-                text: "Du bist ein Sommelier-Assistent. Analysiere dieses Foto eines Weinetiketts und extrahiere alle Details. Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt ohne Markdown-Formatierung oder Code-Blöcke (kein ```json). Falls ein Feld nicht erkennbar ist, verwende null. Typ MUSS genau einer der folgenden Werte sein: 'Rotwein', 'Weißwein', 'Rosé', 'Schaumwein' (Standard ist 'Rotwein'). Das JSON-Format lautet:\n{\n  \"name\": \"Name des Weins (ohne Jahrgang/Winzer)\",\n  \"type\": \"Rotwein\" | \"Weißwein\" | \"Rosé\" | \"Schaumwein\",\n  \"year\": 2018 (Zahl oder null),\n  \"winery\": \"Name des Winzers / Weinguts\",\n  \"region\": \"Anbauregion\",\n  \"grape\": \"Rebsorte (z.B. Riesling, Pinot Noir)\"\n}"
-              },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: base64Data
-                }
-              }
-            ]
+            parts
           }
         ],
         generationConfig: {

@@ -43,6 +43,9 @@ const VintoryAppContent: React.FC = () => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [wineModalOpen, setWineModalOpen] = useState(false);
 
+  // Scanner operation mode: 'ocr' (read label) or 'photo-only' (just snapping cover photo)
+  const [scannerMode, setScannerMode] = useState<'ocr' | 'photo-only'>('ocr');
+
   // Modal edit/scanned details states
   const [selectedWine, setSelectedWine] = useState<Wine | null>(null);
   const [scannedImage, setScannedImage] = useState('');
@@ -134,11 +137,16 @@ const VintoryAppContent: React.FC = () => {
     setWineModalOpen(true);
   };
 
-  const handleScanComplete = (ocrData: ExtractedWineData, imageBase64: string) => {
-    setSelectedWine(null);
-    setScannedData(ocrData);
-    setScannedImage(imageBase64);
-    setWineModalOpen(true);
+  const handleScanComplete = (ocrData: ExtractedWineData | null, imageBase64: string) => {
+    if (scannerMode === 'photo-only') {
+      // Just set the scanned image to update the already open manual form!
+      setScannedImage(imageBase64);
+    } else {
+      setSelectedWine(null);
+      setScannedData(ocrData);
+      setScannedImage(imageBase64);
+      setWineModalOpen(true);
+    }
   };
 
   const handleSaveWine = async (updatedWine: Wine) => {
@@ -188,7 +196,10 @@ const VintoryAppContent: React.FC = () => {
         <div className="flex items-center gap-2.5 w-full md:w-auto">
           
           <button
-            onClick={() => setScannerOpen(true)}
+            onClick={() => {
+              setScannerMode('ocr');
+              setScannerOpen(true);
+            }}
             className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-[#8c1c2e] hover:bg-[#8c1c2e]/90 text-white font-bold rounded-xl text-sm transition-all shadow-[0_4px_12px_rgba(140,28,46,0.3)]"
             title="Weinetikett einscannen"
           >
@@ -394,6 +405,7 @@ const VintoryAppContent: React.FC = () => {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         apiKey={apiKey}
+        mode={scannerMode}
         onScanComplete={handleScanComplete}
         onRedirectToSettings={() => {
           setSettingsOpen(true);
@@ -413,6 +425,10 @@ const VintoryAppContent: React.FC = () => {
         scannedImage={scannedImage}
         scannedData={scannedData}
         onSave={handleSaveWine}
+        onTriggerCamera={() => {
+          setScannerMode('photo-only');
+          setScannerOpen(true);
+        }}
       />
 
     </div>
