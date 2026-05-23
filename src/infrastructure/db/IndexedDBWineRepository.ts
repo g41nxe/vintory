@@ -25,12 +25,12 @@ export class IndexedDBWineRepository implements IWineRepository {
         }
       };
 
-      request.onsuccess = (e) => {
-        this.db = (e.target as IDBOpenDBRequest).result;
+      request.onsuccess = () => {
+        this.db = request.result;
         resolve(this.db);
       };
 
-      request.onerror = (e) => {
+      request.onerror = () => {
         reject(new Error(`Database opening error: ${request.error?.message}`));
       };
     });

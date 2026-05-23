@@ -55,7 +55,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       setFrontImage(null);
       setFailedImages(null);
       
-      startCamera('environment').catch((err) => {
+      startCamera('environment').catch(() => {
         setScanError("Kamerazugriff verweigert oder nicht verfügbar. Prüfe deine Browsereinstellungen.");
       });
     } else {
