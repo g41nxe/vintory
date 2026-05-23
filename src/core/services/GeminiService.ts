@@ -38,7 +38,7 @@ export class GeminiService {
       });
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -48,10 +48,7 @@ export class GeminiService {
           {
             parts
           }
-        ],
-        generationConfig: {
-          response_mime_type: "application/json"
-        }
+        ]
       })
     });
 
@@ -68,7 +65,12 @@ export class GeminiService {
     }
 
     try {
-      const parsed = JSON.parse(textResponse.trim());
+      let cleanedText = textResponse.trim();
+      // Remove markdown code block wraps if present
+      if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      }
+      const parsed = JSON.parse(cleanedText.trim());
       return {
         name: parsed.name || '',
         type: parsed.type || 'Rotwein',
