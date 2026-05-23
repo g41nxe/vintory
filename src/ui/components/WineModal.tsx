@@ -3,6 +3,48 @@ import { X, Star, Heart, Camera, Upload, Plus, Minus } from 'lucide-react';
 import { Wine } from '../../core/entities/Wine';
 import { useVintory } from '../context/VintoryContext';
 
+// Helper functions for fuzzy string matching (Levenshtein Distance)
+const normalizeString = (str: string): string => {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove accents/diacritics
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ""); // Strip spaces, punctuation & non-alphanumeric characters
+};
+
+const getLevenshteinDistance = (a: string, b: string): number => {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+};
+
+const isSimilar = (str1: string, str2: string, threshold = 0.75): boolean => {
+  const s1 = normalizeString(str1);
+  const s2 = normalizeString(str2);
+  if (s1 === s2) return true;
+  if (!s1 || !s2) return false;
+
+  const maxLength = Math.max(s1.length, s2.length);
+  const distance = getLevenshteinDistance(s1, s2);
+  const similarity = 1 - distance / maxLength;
+  return similarity >= threshold;
+};
+
 interface WineModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -47,9 +89,9 @@ export const WineModal: React.FC<WineModalProps> = ({
     if (!formData.name.trim()) return null;
     return wines.find(w => 
       w.id !== formData.id &&
-      w.name.trim().toLowerCase() === formData.name.trim().toLowerCase() &&
-      w.winery.trim().toLowerCase() === formData.winery.trim().toLowerCase() &&
-      w.year === formData.year
+      w.year === formData.year &&
+      isSimilar(w.name, formData.name, 0.75) &&
+      isSimilar(w.winery, formData.winery, 0.75)
     );
   }, [wines, formData.name, formData.winery, formData.year, formData.id]);
 
@@ -79,9 +121,9 @@ export const WineModal: React.FC<WineModalProps> = ({
         
         // Auto-show quick action if duplicate match exists in db
         const hasDuplicate = wines.some(w => 
-          w.name.trim().toLowerCase() === (scannedData.name || '').trim().toLowerCase() &&
-          w.winery.trim().toLowerCase() === (scannedData.winery || '').trim().toLowerCase() &&
-          w.year === (scannedData.year || null)
+          w.year === (scannedData.year || null) &&
+          isSimilar(w.name, scannedData.name || '', 0.75) &&
+          isSimilar(w.winery, scannedData.winery || '', 0.75)
         );
         setShowQuickAction(hasDuplicate);
       } else {
