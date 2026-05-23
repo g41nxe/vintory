@@ -19,8 +19,7 @@ import {
   Wine as WineIcon, 
   TrendingUp, 
   Heart, 
-  Database,
-  ArrowUpDown
+  Database
 } from 'lucide-react';
 
 const VintoryAppContent: React.FC = () => {
