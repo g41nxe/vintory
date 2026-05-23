@@ -50,7 +50,7 @@ export class GeminiService {
           }
         ],
         generationConfig: {
-          responseMimeType: "application/json"
+          response_mime_type: "application/json"
         }
       })
     });
