@@ -45,13 +45,14 @@ export const WineCard: React.FC<WineCardProps> = ({
   return (
     <div className="wine-card group bg-[#1c2230]/70 backdrop-blur-md border border-white/10 rounded-2xl p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_-5px_rgba(0,0,0,0.5)] hover:border-[#8c1c2e]/50 flex flex-col gap-4 relative overflow-hidden">
       
-      {/* Wine Type Badge */}
-      <span className={`absolute top-4 right-4 text-xs font-semibold px-3 py-1 rounded-full ${getWineBadgeColor(wine.type)}`}>
-        {wine.type}
-      </span>
-
       {/* Wine Image Container */}
-      <div className="w-full h-48 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden cursor-pointer" onClick={() => onEdit(wine)}>
+      <div className="w-full h-48 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden cursor-pointer relative" onClick={() => onEdit(wine)}>
+        
+        {/* Wine Type Badge */}
+        <span className={`absolute top-3 right-3 z-10 text-[10px] font-bold px-2.5 py-0.5 rounded-full ${getWineBadgeColor(wine.type)} shadow-md backdrop-blur-sm`}>
+          {wine.type}
+        </span>
+
         {wine.image ? (
           <img
             src={wine.image}

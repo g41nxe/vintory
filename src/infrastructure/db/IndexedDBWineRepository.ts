@@ -4,7 +4,7 @@ import { IWineRepository } from '../../core/repositories/IWineRepository';
 export class IndexedDBWineRepository implements IWineRepository {
   private db: IDBDatabase | null = null;
   private dbName = 'VintoryDB';
-  private dbVersion = 1;
+  private dbVersion = 2;
 
   private initDB(): Promise<IDBDatabase> {
     if (this.db) return Promise.resolve(this.db);
@@ -19,6 +19,9 @@ export class IndexedDBWineRepository implements IWineRepository {
         }
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings');
+        }
+        if (!db.objectStoreNames.contains('scanQueue')) {
+          db.createObjectStore('scanQueue', { keyPath: 'id' });
         }
       };
 
@@ -121,6 +124,43 @@ export class IndexedDBWineRepository implements IWineRepository {
       const transaction = db.transaction('settings', 'readwrite');
       const store = transaction.objectStore('settings');
       const request = store.put(value, key);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  // --- Scan Queue Management ---
+  async getQueueItems(): Promise<any[]> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('scanQueue', 'readonly');
+      const store = transaction.objectStore('scanQueue');
+      const request = store.getAll();
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveQueueItem(item: any): Promise<void> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('scanQueue', 'readwrite');
+      const store = transaction.objectStore('scanQueue');
+      const request = store.put(item);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async deleteQueueItem(id: string): Promise<void> {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('scanQueue', 'readwrite');
+      const store = transaction.objectStore('scanQueue');
+      const request = store.delete(id);
 
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);

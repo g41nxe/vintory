@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useVintory, VintoryProvider } from './ui/context/VintoryContext';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { WineCard } from './ui/components/WineCard';
 import { SettingsModal } from './ui/components/SettingsModal';
 import { ScannerModal } from './ui/components/ScannerModal';
@@ -30,8 +31,28 @@ const VintoryAppContent: React.FC = () => {
     deleteWine,
     saveApiKey,
     exportBackup,
-    importBackup
+    importBackup,
+    
+    // Offline scan queue & notifications
+    queueItems,
+    onlineStatus,
+    processQueue,
+    notifications,
+    removeNotification
   } = useVintory();
+
+  // PWA SW Register Hook for prompt updates
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('Vintory SW Registered:', r);
+    },
+    onRegisterError(error) {
+      console.error('Vintory SW Register Error:', error);
+    }
+  });
 
   // Search, Filter & Sort states
   const [searchTerm, setSearchTerm] = useState('');
@@ -195,6 +216,22 @@ const VintoryAppContent: React.FC = () => {
         {/* Action Controls Header */}
         <div className="flex items-center gap-2.5 w-full md:w-auto">
           
+          {/* Offline Scan Queue Badge */}
+          {queueItems.length > 0 && (
+            <button
+              onClick={processQueue}
+              className="flex items-center gap-1.5 px-3 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-xl animate-pulse cursor-pointer shadow-sm transition-all"
+              title={`${queueItems.length} Scans ausstehend. Klicken zum manuellen Synchronisieren.`}
+              disabled={!onlineStatus || !apiKey}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              Warteschlange ({queueItems.length})
+            </button>
+          )}
+
           <button
             onClick={() => {
               setScannerMode('ocr');
@@ -316,7 +353,7 @@ const VintoryAppContent: React.FC = () => {
       {/* THE VIRTUAL SHELF GRID */}
       <main className="flex-grow min-h-[50vh]">
         {sortedWines.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 py-6 relative wood-shelf">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 py-6 relative">
             {sortedWines.map((wine) => (
               <WineCard
                 key={wine.id}
@@ -430,6 +467,57 @@ const VintoryAppContent: React.FC = () => {
           setScannerOpen(true);
         }}
       />
+
+      {/* REACTIVE TOAST OVERLAYS (Offline queue, background scans, PWA updates) */}
+      <div className="fixed bottom-6 right-6 z-[1200] flex flex-col gap-3 w-full max-w-sm">
+        
+        {/* PWA Update Notice */}
+        {needRefresh && (
+          <div className="bg-[#12080a]/95 backdrop-blur-md border border-[#d4af37]/40 p-4 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.6)] flex flex-col gap-2.5 animate-slide-in">
+            <div className="flex gap-2.5">
+              <span className="text-base text-[#d4af37]">✨</span>
+              <div className="flex-grow">
+                <p className="text-xs font-bold text-[#f3e8eb]">Neue Version verfügbar!</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Eine aktualisierte Version von Vintory ist live.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setNeedRefresh(false)}
+                className="px-3 py-1.5 text-[10px] font-bold text-gray-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/5"
+              >
+                Später
+              </button>
+              <button
+                onClick={() => updateServiceWorker(true)}
+                className="px-3 py-1.5 text-[10px] font-bold text-[#12080a] bg-[#d4af37] hover:bg-[#d4af37]/90 rounded-lg transition-all shadow-[0_2px_8px_rgba(212,175,55,0.3)]"
+              >
+                Aktualisieren
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Local notifications */}
+        {notifications.map((msg, index) => (
+          <div
+            key={index}
+            className="bg-[#1c2230]/95 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.6)] flex items-start gap-2.5 animate-slide-in"
+          >
+            <span className="text-sm">🔔</span>
+            <div className="flex-grow">
+              <p className="text-xs font-semibold text-gray-200">{msg}</p>
+            </div>
+            <button
+              onClick={() => removeNotification(index)}
+              className="text-gray-500 hover:text-white transition-all text-xs font-bold px-1"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
+      </div>
 
     </div>
   );

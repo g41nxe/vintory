@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Camera, RefreshCw, Check, ArrowRight } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
 import { GeminiService, ExtractedWineData } from '../../core/services/GeminiService';
+import { useVintory } from '../context/VintoryContext';
 
 interface ScannerModalProps {
   isOpen: boolean;
@@ -28,6 +29,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   // Scanning States
   const [step, setStep] = useState<'front' | 'back'>('front');
   const [frontImage, setFrontImage] = useState<string | null>(null);
+  const [failedImages, setFailedImages] = useState<{ front: string; back: string | null } | null>(null);
+  
+  const { addScanToQueue } = useVintory();
   
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState('');
@@ -49,6 +53,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       setLoading(false);
       setStep('front');
       setFrontImage(null);
+      setFailedImages(null);
       
       startCamera('environment').catch((err) => {
         setScanError("Kamerazugriff verweigert oder nicht verfügbar. Prüfe deine Browsereinstellungen.");
@@ -85,6 +90,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error("Scan analysis failed:", err);
+      setFailedImages({ front: frontImg, back: backImg });
       setScanError(err.message || "Etikett konnte nicht gelesen werden. Bitte erneut versuchen.");
       setLoading(false);
     }
@@ -224,16 +230,31 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
               <p className="text-sm font-semibold text-red-400">
                 {scanError || cameraError}
               </p>
-              <button
-                onClick={() => {
-                  setScanError(null);
-                  startCamera('environment');
-                }}
-                className="mt-2 flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-lg text-[#d4af37] transition-all"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Erneut versuchen
-              </button>
+              
+              <div className="flex flex-col gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    setScanError(null);
+                    startCamera('environment');
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-lg text-[#d4af37] transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Erneut versuchen
+                </button>
+
+                {failedImages && (
+                  <button
+                    onClick={async () => {
+                      await addScanToQueue(failedImages.front, failedImages.back);
+                      onClose();
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-xs font-bold rounded-lg text-amber-400 transition-all shadow-md"
+                  >
+                    📥 Lokal in Warteschlange speichern
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

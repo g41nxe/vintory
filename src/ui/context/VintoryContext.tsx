@@ -1,9 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Wine } from '../../core/entities/Wine';
 import { IndexedDBWineRepository } from '../../infrastructure/db/IndexedDBWineRepository';
-import { parseEnv } from '../../v1_backup/main.js'; // Wait, let's keep env Config inline or separate
+import { GeminiService } from '../../core/services/GeminiService';
 
 const repository = new IndexedDBWineRepository();
+const geminiService = new GeminiService();
+
+export interface QueueItem {
+  id: string;
+  frontImage: string;
+  backImage: string | null;
+  timestamp: number;
+  status: 'pending' | 'processing' | 'failed';
+}
 
 interface VintoryContextType {
   wines: Wine[];
@@ -14,6 +23,15 @@ interface VintoryContextType {
   saveApiKey: (key: string) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (file: File) => Promise<boolean>;
+  
+  // Offline scan queue & notifications
+  queueItems: QueueItem[];
+  onlineStatus: boolean;
+  addScanToQueue: (frontImage: string, backImage: string | null) => Promise<void>;
+  deleteQueueItem: (id: string) => Promise<void>;
+  processQueue: () => Promise<void>;
+  notifications: string[];
+  removeNotification: (index: number) => void;
 }
 
 const VintoryContext = createContext<VintoryContextType | undefined>(undefined);
@@ -22,6 +40,12 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [wines, setWines] = useState<Wine[]>([]);
   const [apiKey, setApiKey] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  
+  // Offline Scan Queue & Notifications states
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [onlineStatus, setOnlineStatus] = useState<boolean>(navigator.onLine);
+  const [notifications, setNotifications] = useState<string[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState<boolean>(false);
 
   useEffect(() => {
     const initApp = async () => {
@@ -42,7 +66,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
         }
 
-        // 2. Load API Key (Priority: config.js window global > local .env > IndexedDB)
+        // 2. Load API Key
         let key = '';
         const globalConfig = (window as any).VINTORY_CONFIG;
         if (globalConfig && globalConfig.GEMINI_API_KEY) {
@@ -61,6 +85,10 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // 3. Load Wines
         const list = await repository.getAll();
         setWines(list);
+
+        // 4. Load scan queue items
+        const queueList = await repository.getQueueItems();
+        setQueueItems(queueList);
       } catch (err) {
         console.error("Vintory initialization failed:", err);
       } finally {
@@ -70,6 +98,33 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     initApp();
   }, []);
+
+  // Monitor online status & trigger auto queue processor when online
+  useEffect(() => {
+    const handleOnline = () => {
+      setOnlineStatus(true);
+      setNotifications(prev => [...prev, "Verbindung wiederhergestellt! Verarbeite Warteschlange..."]);
+      processQueue();
+    };
+    
+    const handleOffline = () => {
+      setOnlineStatus(false);
+      setNotifications(prev => [...prev, "Offline-Modus aktiv. Scans werden lokal gespeichert."]);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial check
+    if (navigator.onLine && queueItems.length > 0) {
+      processQueue();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [apiKey, queueItems.length]);
 
   const saveWine = async (wine: Wine) => {
     await repository.save(wine);
@@ -127,6 +182,90 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
+  // --- Offline queue management ---
+  const addScanToQueue = async (frontImage: string, backImage: string | null) => {
+    const newItem: QueueItem = {
+      id: Math.random().toString(36).substring(2, 9),
+      frontImage,
+      backImage,
+      timestamp: Date.now(),
+      status: 'pending'
+    };
+    
+    await repository.saveQueueItem(newItem);
+    const updated = await repository.getQueueItems();
+    setQueueItems(updated);
+    setNotifications(prev => [...prev, "Wein-Scan lokal in der Warteschlange gespeichert."]);
+  };
+
+  const deleteQueueItem = async (id: string) => {
+    await repository.deleteQueueItem(id);
+    const updated = await repository.getQueueItems();
+    setQueueItems(updated);
+  };
+
+  const processQueue = async () => {
+    // Avoid double processing, and require an online status and API key
+    if (isProcessingQueue || !navigator.onLine || !apiKey) return;
+    
+    const items = await repository.getQueueItems();
+    if (items.length === 0) return;
+    
+    setIsProcessingQueue(true);
+    console.log(`Processing scan queue of ${items.length} items...`);
+    
+    for (const item of items) {
+      try {
+        // Update state status to processing
+        await repository.saveQueueItem({ ...item, status: 'processing' });
+        
+        const wineData = await geminiService.analyzeLabel(item.frontImage, apiKey, item.backImage || undefined);
+        
+        // Save the newly analyzed wine!
+        const newWine: Wine = {
+          id: Math.random().toString(36).substring(2, 9),
+          name: wineData.name || 'Unbekannter Wein',
+          type: (wineData.type as any) || 'Rotwein',
+          year: wineData.year || null,
+          winery: wineData.winery || 'Unbekanntes Weingut',
+          region: wineData.region || 'Region unbekannt',
+          grape: wineData.grape || '',
+          price: '',
+          quantity: 1,
+          rating: 3,
+          image: item.frontImage,
+          isFavorite: false
+        };
+        
+        await repository.save(newWine);
+        await repository.deleteQueueItem(item.id);
+        
+        setNotifications(prev => [
+          ...prev, 
+          `Hintergrund-Scan erfolgreich! "${newWine.name}" wurde in deinen Keller gelegt.`
+        ]);
+        
+      } catch (err) {
+        console.error(`Failed to process queue item ${item.id}:`, err);
+        // Mark as failed so we don't try in an infinite loop
+        await repository.saveQueueItem({ ...item, status: 'failed' });
+      }
+    }
+    
+    // Refresh states
+    const updatedQueue = await repository.getQueueItems();
+    setQueueItems(updatedQueue);
+    
+    const updatedWines = await repository.getAll();
+    setWines(updatedWines);
+    
+    setIsProcessingQueue(false);
+  };
+
+  const removeNotification = (index: number) => {
+    setNotifications(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <VintoryContext.Provider value={{
       wines,
@@ -136,7 +275,15 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       deleteWine,
       saveApiKey,
       exportBackup,
-      importBackup
+      importBackup,
+      
+      queueItems,
+      onlineStatus,
+      addScanToQueue,
+      deleteQueueItem,
+      processQueue,
+      notifications,
+      removeNotification
     }}>
       {children}
     </VintoryContext.Provider>
