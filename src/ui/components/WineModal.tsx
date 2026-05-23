@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Star, Heart, Camera, Upload } from 'lucide-react';
+import { X, Star, Heart, Camera, Upload, Plus, Minus } from 'lucide-react';
 import { Wine } from '../../core/entities/Wine';
 import { useVintory } from '../context/VintoryContext';
 
@@ -41,6 +41,7 @@ export const WineModal: React.FC<WineModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showQuickAction, setShowQuickAction] = useState(false);
 
   const duplicateWine = useMemo(() => {
     if (!formData.name.trim()) return null;
@@ -58,6 +59,7 @@ export const WineModal: React.FC<WineModalProps> = ({
       if (wine) {
         // Edit mode
         setFormData({ ...wine });
+        setShowQuickAction(false);
       } else if (scannedData) {
         // OCR Review Mode
         setFormData({
@@ -74,6 +76,14 @@ export const WineModal: React.FC<WineModalProps> = ({
           image: scannedImage || '',
           isFavorite: false
         });
+        
+        // Auto-show quick action if duplicate match exists in db
+        const hasDuplicate = wines.some(w => 
+          w.name.trim().toLowerCase() === (scannedData.name || '').trim().toLowerCase() &&
+          w.winery.trim().toLowerCase() === (scannedData.winery || '').trim().toLowerCase() &&
+          w.year === (scannedData.year || null)
+        );
+        setShowQuickAction(hasDuplicate);
       } else {
         // Add new empty mode
         setFormData({
@@ -90,9 +100,10 @@ export const WineModal: React.FC<WineModalProps> = ({
           image: '',
           isFavorite: false
         });
+        setShowQuickAction(false);
       }
     }
-  }, [isOpen, wine, scannedData, scannedImage]);
+  }, [isOpen, wine, scannedData, scannedImage, wines]);
 
   // Support reactive image updates when user snaps a photo via overlay scanner!
   useEffect(() => {
@@ -100,6 +111,107 @@ export const WineModal: React.FC<WineModalProps> = ({
       setFormData((prev) => ({ ...prev, image: scannedImage }));
     }
   }, [isOpen, scannedImage]);
+
+  if (!isOpen) return null;
+
+  // Render Smart Match Quick Action Overlay if it matches and quick action is active
+  if (scannedData && duplicateWine && showQuickAction) {
+    return (
+      <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[1000] p-4 animate-fade-in">
+        <div className="bg-[#12080a] border border-white/10 p-6 md:p-8 rounded-3xl w-full max-w-md relative shadow-2xl flex flex-col items-center text-center gap-6 animate-scale-up">
+          
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-1 cursor-pointer z-50"
+            title="Schließen"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Sommelier Icon */}
+          <div className="w-16 h-16 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center justify-center text-3xl animate-pulse">
+            🍷
+          </div>
+
+          {/* Title Info */}
+          <div>
+            <span className="text-[10px] bg-[#d4af37]/20 text-[#d4af37] border border-[#d4af37]/30 px-3 py-1 rounded-full font-bold uppercase tracking-wider">
+              Wein im Keller erkannt!
+            </span>
+            <h2 className="text-xl font-extrabold text-[#f3e8eb] tracking-tight mt-3">
+              {duplicateWine.name}
+            </h2>
+            <p className="text-sm text-gray-400 font-semibold mt-1">
+              {duplicateWine.winery || 'Unbekanntes Weingut'}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {duplicateWine.year ? `Jahrgang: ${duplicateWine.year}` : 'Ohne Jahrgang'} • {duplicateWine.region || 'Region unbekannt'}
+            </p>
+          </div>
+
+          {/* Status Badge: Stock count */}
+          <div className="bg-white/5 border border-white/5 w-full py-3 px-4 rounded-2xl flex justify-between items-center text-xs">
+            <span className="text-gray-400 font-medium">Aktueller Bestand:</span>
+            <span className="font-extrabold text-white text-sm bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+              {duplicateWine.quantity} {duplicateWine.quantity === 1 ? 'Flasche' : 'Flaschen'}
+            </span>
+          </div>
+
+          {/* Big Quick Actions Container */}
+          <div className="flex flex-col gap-3.5 w-full">
+            
+            {/* Increase Stock Button */}
+            <button
+              type="button"
+              onClick={async () => {
+                await onSave({ ...duplicateWine, quantity: duplicateWine.quantity + 1 });
+                onClose();
+              }}
+              className="flex items-center justify-center gap-2.5 w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-2xl text-sm transition-all shadow-[0_4px_20px_rgba(16,185,129,0.2)] hover:scale-[1.02] cursor-pointer"
+            >
+              <Plus className="w-5 h-5" />
+              Bestand erhöhen (+1 Flasche)
+            </button>
+
+            {/* Decrease Stock Button */}
+            <button
+              type="button"
+              disabled={duplicateWine.quantity === 0}
+              onClick={async () => {
+                await onSave({ ...duplicateWine, quantity: Math.max(0, duplicateWine.quantity - 1) });
+                onClose();
+              }}
+              className="flex items-center justify-center gap-2.5 w-full py-3.5 bg-gradient-to-r from-rose-700 to-red-800 hover:from-rose-600 hover:to-red-700 text-white font-bold rounded-2xl text-sm transition-all shadow-[0_4px_20px_rgba(244,63,94,0.15)] hover:scale-[1.02] disabled:opacity-40 disabled:scale-100 disabled:pointer-events-none cursor-pointer"
+            >
+              <Minus className="w-5 h-5" />
+              Flasche öffnen (-1 Flasche)
+            </button>
+
+          </div>
+
+          {/* Utility Footer Links */}
+          <div className="flex flex-col gap-2 mt-2 w-full text-center">
+            <button
+              type="button"
+              onClick={() => setShowQuickAction(false)}
+              className="text-xs text-[#d4af37] hover:underline font-bold transition-all cursor-pointer"
+            >
+              ✏️ Eintrag bearbeiten (Details ansehen)
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs text-gray-500 hover:text-white transition-all mt-1 cursor-pointer"
+            >
+              Abbrechen
+            </button>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   if (!isOpen) return null;
 
@@ -423,14 +535,16 @@ export const WineModal: React.FC<WineModalProps> = ({
               <button
                 type="button"
                 onClick={handleToggleFavorite}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                className={`flex items-center gap-2 p-2.5 sm:px-4 sm:py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                   formData.isFavorite
                     ? 'bg-[#8c1c2e]/20 text-[#8c1c2e] border-[#8c1c2e]/40 shadow-[0_2px_8px_rgba(140,28,46,0.15)]'
                     : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
                 }`}
               >
-                <Heart className={`w-4 h-4 ${formData.isFavorite ? 'fill-current' : ''}`} />
-                {formData.isFavorite ? 'Favorit' : 'Zu Favoriten'}
+                <Heart className={`w-5 h-5 sm:w-4 sm:h-4 ${formData.isFavorite ? 'fill-current' : ''}`} />
+                <span className="hidden sm:inline">
+                  {formData.isFavorite ? 'Favorit' : 'Zu Favoriten'}
+                </span>
               </button>
 
             </div>

@@ -96,7 +96,7 @@ export const WineCard: React.FC<WineCardProps> = ({
         {/* Favorite Icon */}
         <button
           onClick={() => onToggleFavorite(wine)}
-          className={`p-2 rounded-full hover:bg-white/5 transition-colors duration-200 ${
+          className={`p-2.5 sm:p-2 rounded-full hover:bg-white/5 transition-colors duration-200 cursor-pointer ${
             wine.isFavorite ? 'text-[#8c1c2e]' : 'text-gray-500 hover:text-[#8c1c2e]'
           }`}
           title="Als Favorit markieren"
@@ -106,32 +106,32 @@ export const WineCard: React.FC<WineCardProps> = ({
 
         {/* Quantity Controller & Delete */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center bg-black/30 border border-white/5 px-2 py-1 rounded-full">
+          <div className="flex items-center bg-black/30 border border-white/5 px-2.5 py-1 sm:px-2 sm:py-1 rounded-full gap-1">
             <button
               onClick={() => onUpdateQuantity(wine, Math.max(0, wine.quantity - 1))}
-              className="p-1 text-[#d4af37] hover:bg-white/10 rounded-full transition-colors duration-150"
+              className="p-2 sm:p-1 text-[#d4af37] hover:bg-white/10 rounded-full transition-colors duration-150 cursor-pointer"
               title="Menge verringern"
             >
-              <Minus className="w-3.5 h-3.5" />
+              <Minus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             </button>
-            <span className="w-6 text-center text-xs font-bold text-white">
+            <span className="w-6 text-center text-sm sm:text-xs font-bold text-white">
               {wine.quantity}
             </span>
             <button
               onClick={() => onUpdateQuantity(wine, wine.quantity + 1)}
-              className="p-1 text-[#d4af37] hover:bg-white/10 rounded-full transition-colors duration-150"
+              className="p-2 sm:p-1 text-[#d4af37] hover:bg-white/10 rounded-full transition-colors duration-150 cursor-pointer"
               title="Menge erhöhen"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             </button>
           </div>
 
           <button
             onClick={() => onDelete(wine.id)}
-            className="p-2 text-red-500/50 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors duration-200"
+            className="p-2.5 sm:p-2 text-red-500/70 sm:text-red-500/50 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors duration-200 cursor-pointer"
             title="Wein löschen"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
           </button>
         </div>
 

@@ -481,7 +481,7 @@ const VintoryAppContent: React.FC = () => {
       />
 
       {/* REACTIVE TOAST OVERLAYS (Offline queue, background scans, PWA updates) */}
-      <div className="fixed bottom-6 right-6 z-[1200] flex flex-col gap-3 w-full max-w-sm">
+      <div className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:right-6 sm:left-auto z-[1200] flex flex-col gap-3 w-auto sm:w-full sm:max-w-sm">
         
         {/* PWA Update Notice */}
         {needRefresh && (
