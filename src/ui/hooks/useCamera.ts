@@ -1,15 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export function useCamera() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const startCamera = useCallback(async (facingMode: 'user' | 'environment' = 'environment') => {
     setError(null);
     try {
+      // Stop any existing stream first to avoid leaks
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode }
       });
+      streamRef.current = mediaStream;
       setStream(mediaStream);
       return mediaStream;
     } catch (err) {
@@ -21,20 +28,21 @@ export function useCamera() {
   }, []);
 
   const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
-  }, [stream]);
+    setStream(null);
+  }, []);
 
   // Cleanup stream on component unmount to prevent camera light remaining on!
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [stream]);
+  }, []);
 
   return {
     stream,
@@ -43,3 +51,4 @@ export function useCamera() {
     stopCamera
   };
 }
+

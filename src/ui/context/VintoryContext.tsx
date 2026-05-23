@@ -23,36 +23,6 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [apiKey, setApiKey] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Parse custom .env directly in React as well!
-  const loadLocalEnv = async () => {
-    try {
-      const response = await fetch('.env');
-      if (response.ok) {
-        const text = await response.text();
-        const env: Record<string, string> = {};
-        const lines = text.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) continue;
-          const firstEquals = trimmed.indexOf('=');
-          if (firstEquals === -1) continue;
-          const key = trimmed.substring(0, firstEquals).trim();
-          let value = trimmed.substring(firstEquals + 1).trim();
-          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-            value = value.substring(1, value.length - 1);
-          }
-          env[key] = value;
-        }
-        if (env.GEMINI_API_KEY) {
-          return env.GEMINI_API_KEY;
-        }
-      }
-    } catch (e) {
-      console.log("No local .env file found during React context setup, using DB fallback.");
-    }
-    return '';
-  };
-
   useEffect(() => {
     const initApp = async () => {
       setLoading(true);
@@ -80,7 +50,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
 
         if (!key) {
-          key = await loadLocalEnv();
+          key = (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
         }
 
         if (!key) {
