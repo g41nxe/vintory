@@ -5,6 +5,7 @@ import { WineCard } from './ui/components/WineCard';
 import { SettingsModal } from './ui/components/SettingsModal';
 import { ScannerModal } from './ui/components/ScannerModal';
 import { WineModal } from './ui/components/WineModal';
+import { FilterModal } from './ui/components/FilterModal';
 import { Wine } from './core/entities/Wine';
 import { ExtractedWineData } from './core/services/GeminiService';
 import { 
@@ -63,6 +64,7 @@ const VintoryAppContent: React.FC = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [wineModalOpen, setWineModalOpen] = useState(false);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
 
   // Scanner operation mode: 'ocr' (read label) or 'photo-only' (just snapping cover photo)
   const [scannerMode, setScannerMode] = useState<'ocr' | 'photo-only'>('ocr');
@@ -212,7 +214,7 @@ const VintoryAppContent: React.FC = () => {
     <div className="container max-w-6xl mx-auto px-4 md:px-8 py-8 min-h-screen flex flex-col gap-6">
       
       {/* HEADER SECTION */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/10 pb-6">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-6">
         <div>
           <div className="flex items-center gap-2.5">
             <span className="text-3xl">🍷</span>
@@ -226,13 +228,12 @@ const VintoryAppContent: React.FC = () => {
         </div>
 
         {/* Action Controls Header */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
-          
+        <div className="flex items-center gap-2.5 w-full sm:w-auto self-stretch sm:self-auto justify-end">
           {/* Offline Scan Queue Badge */}
           {queueItems.length > 0 && (
             <button
               onClick={processQueue}
-              className="flex items-center gap-1.5 px-3 py-2.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-xl animate-pulse cursor-pointer shadow-sm transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-xl animate-pulse cursor-pointer shadow-sm transition-all"
               title={`${queueItems.length} Scans ausstehend. Klicken zum manuellen Synchronisieren.`}
               disabled={!onlineStatus || !apiKey}
             >
@@ -243,129 +244,66 @@ const VintoryAppContent: React.FC = () => {
               Warteschlange ({queueItems.length})
             </button>
           )}
-
-          <button
-            onClick={() => {
-              setScannerMode('ocr');
-              setScannerOpen(true);
-            }}
-            className="flex-grow md:flex-grow-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-[#8c1c2e] hover:bg-[#8c1c2e]/90 text-white font-bold rounded-xl text-sm transition-all shadow-[0_4px_12px_rgba(140,28,46,0.3)]"
-            title="Weinetikett einscannen"
-          >
-            <Camera className="w-4 h-4" />
-            Scanner
-          </button>
-
-          <button
-            onClick={handleAddWineManual}
-            className="flex items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all"
-            title="Wein manuell hinzufügen"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="flex items-center justify-center p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[#d4af37] rounded-xl transition-all"
-            title="Einstellungen"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-
         </div>
       </header>
 
-      {/* FILTER & BACKUP CONTROLS BAR */}
-      <section className="bg-[#1c2230]/40 border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        
-        {/* Search & Type filter */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-grow">
-          
-          {/* Search box */}
-          <div className="relative flex items-center flex-grow max-w-md">
-            <Search className="w-4 h-4 absolute left-4 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Suchen nach Name, Weingut, Rebsorte..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-[#f3e8eb] text-sm focus:border-[#8c1c2e] outline-none transition-all"
-            />
-          </div>
-
-          {/* Type dropdown filter */}
-          <div className="relative flex items-center">
-            <Filter className="w-4 h-4 absolute left-4 text-gray-500" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-[#12080a] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-[#f3e8eb] text-sm focus:border-[#8c1c2e] outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="Alle">Alle Weintypen</option>
-              <option value="Rotwein">Rotweine</option>
-              <option value="Weißwein">Weißweine</option>
-              <option value="Rosé">Rosés</option>
-              <option value="Schaumwein">Schaumweine</option>
-            </select>
-          </div>
-
-          {/* Sort dropdown */}
-          <div className="relative flex items-center">
-            <ArrowUpDown className="w-4 h-4 absolute left-4 text-gray-500" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-[#12080a] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-[#f3e8eb] text-sm focus:border-[#8c1c2e] outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="name-asc">Sortierung: Name (A-Z)</option>
-              <option value="name-desc">Sortierung: Name (Z-A)</option>
-              <option value="year-desc">Sortierung: Jahrgang (Neu-Alt)</option>
-              <option value="year-asc">Sortierung: Jahrgang (Alt-Neu)</option>
-              <option value="rating-desc">Sortierung: Beste Bewertung</option>
-              <option value="qty-desc">Sortierung: Meiste Flaschen</option>
-              <option value="price-desc">Sortierung: Teuerster Preis</option>
-            </select>
-          </div>
-
-        </div>
-
-        {/* Backup button controllers */}
-        <div className="flex gap-2 justify-end">
-          
-          <button
-            onClick={exportBackup}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-white transition-all"
-            title="Keller-Backup herunterladen"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-white transition-all"
-            title="Keller-Backup hochladen"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Import
-          </button>
-
+      {/* UNIFIED SEARCH & ACTION TOOLBAR */}
+      <section className="bg-[#1c2230]/40 border border-white/5 p-3 rounded-2xl flex items-center gap-2">
+        {/* Search Input Box */}
+        <div className="relative flex items-center flex-grow min-w-0">
+          <Search className="w-4 h-4 absolute left-3.5 text-gray-500" />
           <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportFile}
-            className="hidden"
+            type="text"
+            placeholder="Suchen nach Name, Weingut..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-3.5 text-[#f3e8eb] text-sm focus:border-[#8c1c2e] outline-none transition-all placeholder:text-gray-500"
           />
-
         </div>
+
+        {/* Filter & Sort Button */}
+        <button
+          onClick={() => setFilterModalOpen(true)}
+          className={`relative flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[#f3e8eb] cursor-pointer transition-all shrink-0 ${
+            (typeFilter !== 'Alle' || sortBy !== 'name-asc') ? 'border-[#d4af37]/45 text-[#d4af37]' : ''
+          }`}
+          title="Filter & Sortierung öffnen"
+        >
+          <Filter className="w-5 h-5" />
+          {/* Active Filter Indicator */}
+          {(typeFilter !== 'Alle' || sortBy !== 'name-asc') && (
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#d4af37] border border-[#12080a] rounded-full animate-pulse" />
+          )}
+        </button>
+
+        {/* Scanner Button */}
+        <button
+          onClick={() => {
+            setScannerMode('ocr');
+            setScannerOpen(true);
+          }}
+          className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-[#8c1c2e] hover:bg-[#8c1c2e]/90 text-white font-bold rounded-xl text-sm transition-all shadow-[0_4px_12px_rgba(140,28,46,0.3)] cursor-pointer shrink-0"
+          title="Weinetikett einscannen"
+        >
+          <Camera className="w-5 h-5" />
+          <span className="hidden sm:inline">Scanner</span>
+        </button>
+
+        {/* Add Manual Button */}
+        <button
+          onClick={handleAddWineManual}
+          className="flex items-center justify-center p-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl transition-all cursor-pointer shrink-0"
+          title="Wein manuell hinzufügen"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
 
       </section>
 
       {/* THE VIRTUAL SHELF GRID */}
       <main className="flex-grow min-h-[50vh]">
         {sortedWines.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 py-6 relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8 py-6 relative">
             {sortedWines.map((wine) => (
               <WineCard
                 key={wine.id}
@@ -442,7 +380,57 @@ const VintoryAppContent: React.FC = () => {
 
       </footer>
 
+      {/* UTILITY FOOTER SECTION */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-white/5 text-xs text-gray-500 mt-2">
+        <p>© {new Date().getFullYear()} Vintory Keller. Alle Rechte vorbehalten.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-[#d4af37] transition-all cursor-pointer"
+            title="Einstellungen"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Einstellungen
+          </button>
+
+          <button
+            onClick={exportBackup}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer"
+            title="Keller-Backup herunterladen"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export
+          </button>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer"
+            title="Keller-Backup hochladen"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Import
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+        </div>
+      </div>
+
       {/* ALL MODAL WINDOWS */}
+      <FilterModal
+        isOpen={filterModalOpen}
+        onClose={() => setFilterModalOpen(false)}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+      />
+
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
