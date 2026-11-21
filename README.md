@@ -14,6 +14,7 @@ Alles bleibt auf deinem Gerät.
 ![React 18](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178c6?logo=typescript&logoColor=white)
 ![Gemini](https://img.shields.io/badge/KI-Google%20Gemini-d4af37?logo=googlegemini&logoColor=white)
+[![Lizenz: PolyForm Noncommercial](https://img.shields.io/badge/Lizenz-PolyForm%20Noncommercial-555)](LICENSE.md)
 
 **[➜ vintory.netlify.app öffnen](https://vintory.netlify.app)**
 
@@ -140,3 +141,12 @@ docs/adr/                Architektur-Entscheidungen
   [Daten nur lokal](docs/adr/0003-nutzerdaten-nur-lokal.md) ·
   [Im Besitz](docs/adr/0004-im-besitz-aus-anzahl-abgeleitet.md) ·
   [Ein Eintrag pro Wein](docs/adr/0005-ein-eintrag-pro-wein.md)
+
+## Lizenz
+
+Vintory steht unter der **[PolyForm Noncommercial License 1.0.0](LICENSE.md)**.
+
+- ✅ **Erlaubt:** private Nutzung, Hobby, Lernen, Forschung, gemeinnützige Organisationen – auch ändern und weitergeben, solange die Lizenz mitgeht.
+- ❌ **Nicht erlaubt:** jede kommerzielle Nutzung, also mit diesem Code oder darauf aufbauend Geld verdienen.
+
+Für eine kommerzielle Nutzung frag bitte über [GitHub](https://github.com/g41nxe) nach einer eigenen Erlaubnis. Verbindlich ist der englische Lizenztext in [LICENSE.md](LICENSE.md).
