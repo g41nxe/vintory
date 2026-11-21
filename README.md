@@ -93,7 +93,7 @@ netlify link       # einmalig: mit dem Netlify-Projekt verknüpfen
 netlify dev        # App + Scan-Function auf http://localhost:8888
 ```
 
-`npm run dev` startet nur das Frontend (ohne Scan). Weitere Skripte: `npm run build`, `npm run lint`.
+`npm run dev` startet nur das Frontend (ohne Scan). Weitere Skripte: `npm run build`, `npm run lint`, `npm test` (Vitest).
 
 ### Umgebungsvariablen (Netlify)
 
