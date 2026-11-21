@@ -7,9 +7,7 @@ import { useVintory } from '../context/VintoryContext';
 interface ScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  apiKey: string;
   onScanComplete: (data: ExtractedWineData | null, imageBase64: string) => void;
-  onRedirectToSettings: () => void;
   mode?: 'ocr' | 'photo-only';
 }
 
@@ -18,9 +16,7 @@ const geminiService = new GeminiService();
 export const ScannerModal: React.FC<ScannerModalProps> = ({
   isOpen,
   onClose,
-  apiKey,
   onScanComplete,
-  onRedirectToSettings,
   mode = 'ocr'
 }) => {
   const { stream, error: cameraError, startCamera, stopCamera } = useCamera();
@@ -38,17 +34,9 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   const [scanError, setScanError] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
 
-  // Auto-route to settings if API key is missing (only in OCR mode)
-  useEffect(() => {
-    if (isOpen && !apiKey && mode === 'ocr') {
-      onRedirectToSettings();
-      onClose();
-    }
-  }, [isOpen, apiKey, mode, onRedirectToSettings, onClose]);
-
   // Start/Stop camera stream
   useEffect(() => {
-    if (isOpen && (apiKey || mode === 'photo-only')) {
+    if (isOpen) {
       setScanError(null);
       setLoading(false);
       setStep('front');
@@ -61,7 +49,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
     } else {
       stopCamera();
     }
-  }, [isOpen, apiKey, mode, startCamera, stopCamera]);
+  }, [isOpen, mode, startCamera, stopCamera]);
 
   // Bind media stream to video element
   useEffect(() => {
@@ -70,7 +58,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
     }
   }, [stream]);
 
-  if (!isOpen || (!apiKey && mode === 'ocr')) return null;
+  if (!isOpen) return null;
 
   // Perform Gemini AI extraction with single or dual label images
   const runOCRAnalysis = async (frontImg: string, backImg: string | null) => {
@@ -80,8 +68,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
 
     try {
       const wineData = await geminiService.analyzeLabel(
-        frontImg, 
-        apiKey, 
+        frontImg,
         backImg || undefined
       );
 

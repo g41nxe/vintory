@@ -8,81 +8,33 @@ export interface ExtractedWineData {
   suggestedPrice?: string;
 }
 
+// Calls the server-side proxy (netlify/functions/analyze-label.mts).
+// The Gemini API key is stored only on the server.
 export class GeminiService {
-  async analyzeLabel(frontImageBase64: string, apiKey: string, backImageBase64?: string): Promise<ExtractedWineData> {
-    if (!apiKey) {
-      throw new Error("No Gemini API key provided.");
-    }
-
-    const frontBase64 = frontImageBase64.split(',')[1] || frontImageBase64;
-
-    const parts: any[] = [
-      {
-        text: "Du bist ein Sommelier-Assistent. Analysiere dieses Foto (oder diese Fotos von Vorderseite und optional Rückseite) eines Weinetiketts, extrahiere alle Details und schätze den aktuellen Marktpreis (oder eine realistische Preisspanne) in Euro (€) basierend auf dem erkannten Wein und Jahrgang. Nutze insbesondere die Rückseite (Backlabel), falls vorhanden, um Rebsorten, Winzer, Region oder andere Spezifikationen präziser zu erfassen. Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt ohne Markdown-Formatierung oder Code-Blöcke (kein ```json). Falls ein Feld nicht erkennbar ist, verwende null. Typ MUSS genau einer der folgenden Werte sein: 'Rotwein', 'Weißwein', 'Rosé', 'Schaumwein' (Standard ist 'Rotwein'). Das JSON-Format lautet:\n{\n  \"name\": \"Name des Weins (ohne Jahrgang/Winzer)\",\n  \"type\": \"Rotwein\" | \"Weißwein\" | \"Rosé\" | \"Schaumwein\",\n  \"year\": 2018 (Zahl oder null),\n  \"winery\": \"Name des Winzers / Weinguts\",\n  \"region\": \"Anbauregion\",\n  \"grape\": \"Rebsorte (z.B. Riesling, Pinot Noir)\",\n  \"suggestedPrice\": \"z.B. 45.00 oder 120.00 - 140.00 (nur Zahlen und eventuell Spanne, ohne Währungssymbol, null falls unklar)\"\n}"
-      },
-      {
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: frontBase64
-        }
-      }
-    ];
-
-    if (backImageBase64) {
-      const backBase64 = backImageBase64.split(',')[1] || backImageBase64;
-      parts.push({
-        inlineData: {
-          mimeType: "image/jpeg",
-          data: backBase64
-        }
-      });
-    }
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+  async analyzeLabel(frontImageBase64: string, backImageBase64?: string): Promise<ExtractedWineData> {
+    const response = await fetch('/api/analyze-label', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          {
-            parts
-          }
-        ]
-      })
+        frontImage: frontImageBase64,
+        backImage: backImageBase64 || null,
+      }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error details:", errorText);
-      throw new Error(`Gemini API returned status ${response.status}`);
-    }
-
-    const result = await response.json();
-    const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!textResponse) {
-      throw new Error("Empty response from Gemini API");
-    }
-
+    let payload: (Partial<ExtractedWineData> & { error?: string }) | null = null;
     try {
-      let cleanedText = textResponse.trim();
-      // Remove markdown code block wraps if present
-      if (cleanedText.startsWith('```')) {
-        cleanedText = cleanedText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-      }
-      const parsed = JSON.parse(cleanedText.trim());
-      return {
-        name: parsed.name || '',
-        type: parsed.type || 'Rotwein',
-        year: parsed.year ? Number(parsed.year) : null,
-        winery: parsed.winery || '',
-        region: parsed.region || '',
-        grape: parsed.grape || '',
-        suggestedPrice: parsed.suggestedPrice || '',
-      };
-    } catch (e) {
-      console.error("Failed to parse Gemini JSON:", textResponse, e);
-      throw new Error("Gemini did not return valid JSON wine structured data.");
+      payload = await response.json();
+    } catch {
+      // Non-JSON response (e.g. network or routing problem)
     }
+
+    if (!response.ok) {
+      throw new Error(payload?.error || `Etikett-Analyse fehlgeschlagen (Status ${response.status}).`);
+    }
+    if (!payload || typeof payload.name !== 'string') {
+      throw new Error('Ungültige Antwort vom Server.');
+    }
+
+    return payload as ExtractedWineData;
   }
 }

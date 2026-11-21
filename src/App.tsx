@@ -2,16 +2,14 @@ import React, { useState, useMemo, useRef } from 'react';
 import { useVintory, VintoryProvider } from './ui/context/VintoryContext';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { WineCard } from './ui/components/WineCard';
-import { SettingsModal } from './ui/components/SettingsModal';
 import { ScannerModal } from './ui/components/ScannerModal';
 import { WineModal } from './ui/components/WineModal';
 import { FilterModal } from './ui/components/FilterModal';
 import { Wine } from './core/entities/Wine';
 import { ExtractedWineData } from './core/services/GeminiService';
 import { 
-  Camera, 
-  Settings, 
-  Plus, 
+  Camera,
+  Plus,
   Search, 
   Filter, 
   Download, 
@@ -25,11 +23,9 @@ import {
 const VintoryAppContent: React.FC = () => {
   const {
     wines,
-    apiKey,
     loading,
     saveWine,
     deleteWine,
-    saveApiKey,
     exportBackup,
     importBackup,
     
@@ -60,7 +56,6 @@ const VintoryAppContent: React.FC = () => {
   const [sortBy, setSortBy] = useState('name-asc');
 
   // Modal open states
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [wineModalOpen, setWineModalOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
@@ -234,7 +229,7 @@ const VintoryAppContent: React.FC = () => {
               onClick={processQueue}
               className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-xl animate-pulse cursor-pointer shadow-sm transition-all"
               title={`${queueItems.length} Scans ausstehend. Klicken zum manuellen Synchronisieren.`}
-              disabled={!onlineStatus || !apiKey}
+              disabled={!onlineStatus}
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -384,15 +379,6 @@ const VintoryAppContent: React.FC = () => {
         <p>© {new Date().getFullYear()} Vintory Keller. Alle Rechte vorbehalten.</p>
         <div className="flex gap-2">
           <button
-            onClick={() => setSettingsOpen(true)}
-            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-[#d4af37] transition-all cursor-pointer"
-            title="Einstellungen"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            Einstellungen
-          </button>
-
-          <button
             onClick={exportBackup}
             className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer"
             title="Keller-Backup herunterladen"
@@ -430,23 +416,11 @@ const VintoryAppContent: React.FC = () => {
         setSortBy={setSortBy}
       />
 
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        apiKey={apiKey}
-        onSave={saveApiKey}
-      />
-
       <ScannerModal
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
-        apiKey={apiKey}
         mode={scannerMode}
         onScanComplete={handleScanComplete}
-        onRedirectToSettings={() => {
-          setSettingsOpen(true);
-          alert("Bitte trage zuerst deinen Gemini API-Key in den Einstellungen ein, um den Scanner zu nutzen.");
-        }}
       />
 
       <WineModal

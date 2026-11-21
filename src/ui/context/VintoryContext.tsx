@@ -16,11 +16,9 @@ export interface QueueItem {
 
 interface VintoryContextType {
   wines: Wine[];
-  apiKey: string;
   loading: boolean;
   saveWine: (wine: Wine) => Promise<void>;
   deleteWine: (id: string) => Promise<void>;
-  saveApiKey: (key: string) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (file: File) => Promise<boolean>;
   
@@ -38,7 +36,6 @@ const VintoryContext = createContext<VintoryContextType | undefined>(undefined);
 
 export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [wines, setWines] = useState<Wine[]>([]);
-  const [apiKey, setApiKey] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   
   // Offline Scan Queue & Notifications states
@@ -66,27 +63,12 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
         }
 
-        // 2. Load API Key
-        let key = '';
-        const globalConfig = (window as any).VINTORY_CONFIG;
-        if (globalConfig && globalConfig.GEMINI_API_KEY) {
-          key = globalConfig.GEMINI_API_KEY;
-        }
-
-        if (!key) {
-          key = (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
-        }
-
-        if (!key) {
-          key = await repository.getSetting('gemini_api_key');
-        }
-        setApiKey(key);
-
-        // 3. Load Wines
+        // 2. Load Wines
+        // (The Gemini API key now lives only on the server, see netlify/functions.)
         const list = await repository.getAll();
         setWines(list);
 
-        // 4. Load scan queue items
+        // 3. Load scan queue items
         const queueList = await repository.getQueueItems();
         setQueueItems(queueList);
       } catch (err) {
@@ -124,7 +106,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [apiKey, queueItems.length]);
+  }, [queueItems.length]);
 
   const saveWine = async (wine: Wine) => {
     await repository.save(wine);
@@ -136,11 +118,6 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await repository.delete(id);
     const list = await repository.getAll();
     setWines(list);
-  };
-
-  const saveApiKey = async (key: string) => {
-    await repository.saveSetting('gemini_api_key', key);
-    setApiKey(key);
   };
 
   const exportBackup = async () => {
@@ -205,8 +182,8 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const processQueue = async () => {
-    // Avoid double processing, and require an online status and API key
-    if (isProcessingQueue || !navigator.onLine || !apiKey) return;
+    // Avoid double processing, and require an online status
+    if (isProcessingQueue || !navigator.onLine) return;
     
     const items = await repository.getQueueItems();
     if (items.length === 0) return;
@@ -219,7 +196,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // Update state status to processing
         await repository.saveQueueItem({ ...item, status: 'processing' });
         
-        const wineData = await geminiService.analyzeLabel(item.frontImage, apiKey, item.backImage || undefined);
+        const wineData = await geminiService.analyzeLabel(item.frontImage, item.backImage || undefined);
         
         // Save the newly analyzed wine!
         const newWine: Wine = {
@@ -269,11 +246,9 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   return (
     <VintoryContext.Provider value={{
       wines,
-      apiKey,
       loading,
       saveWine,
       deleteWine,
-      saveApiKey,
       exportBackup,
       importBackup,
       
