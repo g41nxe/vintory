@@ -71,6 +71,18 @@ sequenceDiagram
 
 Scans sind begrenzt (standardmäßig 200 pro Tag, 30 pro Stunde und IP), damit die KI-Kosten gedeckelt bleiben – Details in [ADR 0002](docs/adr/0002-scan-limits-fail-closed.md).
 
+### Welches KI-Modell?
+
+Standard ist **`gemini-3.5-flash-lite`**. Im Vergleich mit fünf echten Etikettenfotos (Mosel, Saar, Bordeaux, Rioja, Burgund; teils mit Rückseite) haben alle getesteten Modelle Weingut, Jahrgang, Typ, Region und Rebsorte korrekt erkannt – die Lite-Modelle aber deutlich schneller und günstiger:
+
+| Modell | Antwortzeit | Kosten pro Scan |
+|---|---|---|
+| `gemini-3.8-flash` | ~5 s | ~0,30 ct (ab 2027 doppelt) |
+| **`gemini-3.5-flash-lite`** | **~1 s** | **~0,08 ct** |
+| `gemini-3.1-flash-lite` | ~1 s | ~0,06 ct |
+
+<sub>Stand 21.11.2026. Die Preisschätzung der KI ist bei allen Modellen nur eine grobe Orientierung.</sub>
+
 ## Entwickeln
 
 **Voraussetzungen:** Node 22, [Netlify CLI](https://docs.netlify.com/api-and-cli-guides/cli-guides/get-started-with-cli/) (`npm install -g netlify-cli`)
@@ -88,7 +100,7 @@ netlify dev        # App + Scan-Function auf http://localhost:8888
 | Variable | Pflicht | Bedeutung |
 |---|---|---|
 | `GEMINI_API_KEY` | ✅ | Gemini-API-Key, nur für die Function. **Niemals mit `VITE_` beginnen** – das landet im öffentlichen Bundle. |
-| `GEMINI_MODEL` | | Modell, Standard `gemini-3.8-flash` |
+| `GEMINI_MODEL` | | Modell, Standard `gemini-3.5-flash-lite` (schnell, günstig; Vergleich siehe unten) |
 | `SCAN_LIMIT_PER_DAY` | | Scans pro Tag für alle zusammen, Standard 200 |
 | `SCAN_LIMIT_PER_IP_HOUR` | | Scans pro Stunde je IP, Standard 30 |
 

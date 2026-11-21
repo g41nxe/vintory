@@ -6,7 +6,9 @@ import type { Config, Context } from '@netlify/functions';
 // (scope: Functions) and never reaches the browser.
 
 // Model can be switched without a code change via the GEMINI_MODEL env variable.
-const DEFAULT_MODEL = 'gemini-3.8-flash';
+// gemini-3.5-flash-lite: in a comparison with real labels as accurate as gemini-3.8-flash,
+// ~5x faster (~1 s) and ~4x cheaper; no forced thinking tokens. See README.
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 const geminiUrl = () =>
   `https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL || DEFAULT_MODEL}:generateContent`;
 
