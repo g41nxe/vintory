@@ -1,4 +1,5 @@
-import type { Config } from '@netlify/functions';
+import { getStore } from '@netlify/blobs';
+import type { Config, Context } from '@netlify/functions';
 
 // Server-side proxy for Gemini label analysis.
 // The API key lives only in the Netlify environment variable GEMINI_API_KEY
@@ -36,6 +37,93 @@ const isAllowedOrigin = (origin: string | null, requestUrl: string): boolean => 
   }
 };
 
+// --- Scan limits (cost protection) ---
+// Hard caps enforced before Gemini is called. Counters live in Netlify Blobs.
+// Configurable via SCAN_LIMIT_PER_DAY and SCAN_LIMIT_PER_IP_HOUR env variables.
+const DEFAULT_LIMIT_PER_DAY = 200;
+const DEFAULT_LIMIT_PER_IP_HOUR = 30;
+
+const limitFromEnv = (name: string, fallback: number): number => {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+};
+
+// Day and hour in Europe/Berlin, so the daily limit resets at German midnight.
+const berlinTimeSlots = (now = new Date()) => {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Berlin',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value])
+  );
+  const day = `${parts.year}-${parts.month}-${parts.day}`;
+  return { day, hour: `${day}T${parts.hour}` };
+};
+
+// IP addresses are never stored in plain text.
+const hashIp = async (ip: string): Promise<string> => {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`vintory:${ip}`));
+  return Array.from(new Uint8Array(digest).slice(0, 12), (b) => b.toString(16).padStart(2, '0')).join('');
+};
+
+type LimitResult = { ok: true } | { ok: false; status: number; error: string };
+
+// Note: read-then-write is not atomic, so under heavy parallel load the counters can
+// overshoot by a few requests. That is acceptable for cost protection at this scale.
+const checkAndCountScan = async (ip: string): Promise<LimitResult> => {
+  const limitPerDay = limitFromEnv('SCAN_LIMIT_PER_DAY', DEFAULT_LIMIT_PER_DAY);
+  const limitPerIpHour = limitFromEnv('SCAN_LIMIT_PER_IP_HOUR', DEFAULT_LIMIT_PER_IP_HOUR);
+  const store = getStore({ name: 'scan-limits', consistency: 'strong' });
+  const { day, hour } = berlinTimeSlots();
+  const dayKey = `day/${day}`;
+  const ipKey = `ip-hour/${hour}/${await hashIp(ip)}`;
+
+  const [dayCount, ipCount] = await Promise.all([
+    store.get(dayKey, { type: 'json' }) as Promise<number | null>,
+    store.get(ipKey, { type: 'json' }) as Promise<number | null>,
+  ]);
+
+  if ((dayCount ?? 0) >= limitPerDay) {
+    return {
+      ok: false,
+      status: 429,
+      error: 'Das Tageslimit für Etikett-Scans ist erreicht. Morgen geht es wieder – bis dahin kannst du Weine manuell anlegen.',
+    };
+  }
+  if ((ipCount ?? 0) >= limitPerIpHour) {
+    return {
+      ok: false,
+      status: 429,
+      error: 'Zu viele Scans in kurzer Zeit. Bitte versuche es in einer Stunde erneut.',
+    };
+  }
+
+  await Promise.all([
+    store.setJSON(dayKey, (dayCount ?? 0) + 1),
+    store.setJSON(ipKey, (ipCount ?? 0) + 1),
+  ]);
+
+  // First scan of the day: remove hourly IP counters from previous days.
+  if (!dayCount) {
+    try {
+      const { blobs } = await store.list({ prefix: 'ip-hour/' });
+      await Promise.all(
+        blobs.filter((b) => !b.key.startsWith(`ip-hour/${day}`)).map((b) => store.delete(b.key))
+      );
+    } catch (e) {
+      console.error('Cleanup of old scan counters failed', e);
+    }
+  }
+
+  return { ok: true };
+};
+
 const toBase64Payload = (value: unknown): string | null => {
   if (typeof value !== 'string' || value.length === 0 || value.length > MAX_IMAGE_CHARS) {
     return null;
@@ -44,7 +132,7 @@ const toBase64Payload = (value: unknown): string | null => {
   return /^[A-Za-z0-9+/=]+$/.test(data) ? data : null;
 };
 
-export default async (req: Request) => {
+export default async (req: Request, context: Context) => {
   if (req.method !== 'POST') {
     return json(405, { error: 'Method not allowed' });
   }
@@ -72,6 +160,18 @@ export default async (req: Request) => {
   const back = body.backImage ? toBase64Payload(body.backImage) : null;
   if (body.backImage && !back) {
     return json(400, { error: 'Rückseiten-Foto ist ungültig.' });
+  }
+
+  // Enforce limits only for valid requests, right before the (billed) Gemini call.
+  // Fail closed: if the counters can't be checked, don't risk uncapped spend.
+  try {
+    const limit = await checkAndCountScan(context.ip || 'unknown');
+    if (!limit.ok) {
+      return json(limit.status, { error: limit.error });
+    }
+  } catch (e) {
+    console.error('Scan limit check failed', e);
+    return json(503, { error: 'Scan-Dienst gerade nicht verfügbar. Bitte später erneut versuchen.' });
   }
 
   const parts: unknown[] = [
