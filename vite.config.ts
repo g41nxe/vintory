@@ -10,6 +10,11 @@ export default defineConfig({
       registerType: 'prompt',
       // Manifest icons are precached automatically; these are the extra ones from index.html.
       includeAssets: ['favicon-48.png', 'apple-touch-icon.png'],
+      workbox: {
+        // The service worker answers navigations with the app (SPA fallback) –
+        // except for the standalone privacy page, which must load as itself.
+        navigateFallbackDenylist: [/^\/datenschutz\.html$/],
+      },
       manifest: {
         name: 'Vintory – Verkostungstagebuch und Weinkeller',
         short_name: 'Vintory',

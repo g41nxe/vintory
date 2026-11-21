@@ -44,7 +44,10 @@ Alles bleibt auf deinem Gerät.
 - **Bleiben auf deinem Gerät** – in der Browser-Datenbank (IndexedDB). Kein Konto, kein Server, keine Cloud-Kopie.
 - **Gehen nicht verloren**: Updates verändern keine bestehenden Einträge; Löschen und Ersetzen fragen nach bzw. legen vorher automatisch ein Backup an ([ADR 0003](docs/adr/0003-nutzerdaten-nur-lokal.md)).
 - **Nur zum Scannen** werden die Etikettenfotos an Google Gemini geschickt – über einen eigenen Server-Proxy, der API-Key ist nie im Browser.
+- **Kein Tracking, keine Cookies, keine Fremd-Schriften** – auch die Schrift wird direkt mit der App ausgeliefert.
 - **Sichere regelmäßig ein Backup** (Export unten auf der Seite) – wer die Browserdaten löscht, löscht auch die Weinliste.
+
+Ausführlich: [Datenschutzerklärung](https://vintory.netlify.app/datenschutz.html)
 
 ## So funktioniert der Scan
 
