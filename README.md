@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="public/icon.png" alt="Vintory" width="112" />
+<img src="public/icon-192.png" alt="Vintory" width="112" />
 
 # Vintory
 

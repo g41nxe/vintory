@@ -8,10 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['icon.png'],
+      // Manifest icons are precached automatically; these are the extra ones from index.html.
+      includeAssets: ['favicon-48.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Vintory – Verkostungstagebuch und Weinkeller',
         short_name: 'Vintory',
+        lang: 'de',
         description: 'Halte verkostete und eigene Weine fest – mit KI-Etikettenscan.',
         theme_color: '#8c1c2e',
         background_color: '#12080a',
@@ -19,12 +21,12 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           {
-            src: 'icon.png',
+            src: 'icon-192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'icon.png',
+            src: 'icon-512.png',
             sizes: '512x512',
             type: 'image/png'
           }
