@@ -191,6 +191,14 @@ const VintoryAppContent: React.FC = () => {
     await saveWine({ ...wine, isFavorite: !wine.isFavorite });
   };
 
+  // Deleting can't be undone and data lives only on this device (ADR 0003): always ask first.
+  const handleDeleteWine = async (id: string) => {
+    const wine = wines.find((w) => w.id === id);
+    const label = wine?.name ? `„${wine.name}“` : 'Diesen Wein';
+    if (!window.confirm(`${label} wirklich löschen? Das lässt sich nicht rückgängig machen.`)) return;
+    await deleteWine(id);
+  };
+
   const handleEditWine = (wine: Wine) => {
     setSelectedWine(wine);
     setScannedData(null);
@@ -386,7 +394,7 @@ const VintoryAppContent: React.FC = () => {
                 key={wine.id}
                 wine={wine}
                 onEdit={handleEditWine}
-                onDelete={deleteWine}
+                onDelete={handleDeleteWine}
                 onUpdateQuantity={handleUpdateQuantity}
                 onToggleFavorite={handleToggleFavorite}
               />
