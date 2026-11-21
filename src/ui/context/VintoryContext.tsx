@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { Wine } from '../../core/entities/Wine';
+import { Wine, generateWineId } from '../../core/entities/Wine';
+import { getNewWineOwnedDefault } from '../preferences';
 import { IndexedDBWineRepository } from '../../infrastructure/db/IndexedDBWineRepository';
 import { GeminiService, ScanError } from '../../core/services/GeminiService';
 import { ImportMode, parseBackup, winesToAddOnMerge } from '../../core/services/backupImport';
@@ -39,6 +40,8 @@ interface VintoryContextType {
   readBackupFile: (file: File) => Promise<ImportPreview>;
   /** Writes previously read wines. Returns the number of wines written. */
   applyImport: (wines: Wine[], mode: ImportMode) => Promise<number>;
+  /** Moves the given „Weingut“ values to „Händler“ for wines without a merchant. Returns wines changed. */
+  moveWineriesToMerchant: (wineries: string[]) => Promise<number>;
   
   // Offline scan queue & notifications
   queueItems: QueueItem[];
@@ -176,6 +179,27 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return written;
   };
 
+  /**
+   * One-off cleanup: entries the user had put under „Weingut“ that are really a
+   * Händler get moved to the merchant field. Only wines without a merchant are
+   * changed, so nothing is overwritten; the full list is downloaded first (ADR 0003).
+   * Returns the number of wines changed.
+   */
+  const moveWineriesToMerchant = async (wineries: string[]): Promise<number> => {
+    const selected = new Set(wineries.map((w) => w.trim()).filter(Boolean));
+    if (selected.size === 0) return 0;
+    const all = await repository.getAll();
+    const toChange = all
+      .filter((w) => !w.merchant.trim() && selected.has(w.winery.trim()))
+      .map((w) => ({ ...w, merchant: w.winery.trim(), winery: '' }));
+    if (toChange.length === 0) return 0;
+
+    downloadWinesAsBackup(all, '_vor_haendler_aufraeumen');
+    await repository.saveMany(toChange);
+    setWines(await repository.getAll());
+    return toChange.length;
+  };
+
   // --- Offline queue management ---
   const addScanToQueue = async (frontImage: string, backImage: string | null) => {
     const newItem: QueueItem = {
@@ -243,8 +267,12 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
           continue;
         }
 
+        // Same defaults as a manually added wine: owned per the device's last choice;
+        // if not owned it was most likely tasted – on the day it was scanned.
+        const owned = getNewWineOwnedDefault();
+        const scannedOn = new Date(item.timestamp);
         const newWine: Wine = {
-          id: Math.random().toString(36).substring(2, 9),
+          id: generateWineId(),
           name: wineData.name || 'Unbekannter Wein',
           type: wineData.type || 'Rotwein',
           year: wineData.year || null,
@@ -252,10 +280,16 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
           region: wineData.region || 'Region unbekannt',
           grape: wineData.grape || '',
           price: wineData.suggestedPrice || '',
-          quantity: 1,
+          quantity: owned ? 1 : 0,
           rating: 3,
           image: item.frontImage,
           isFavorite: false,
+          merchant: '',
+          comment: '',
+          tags: [],
+          tastedAt: owned
+            ? null
+            : `${scannedOn.getFullYear()}-${String(scannedOn.getMonth() + 1).padStart(2, '0')}-${String(scannedOn.getDate()).padStart(2, '0')}`,
         };
 
         await repository.save(newWine);
@@ -264,7 +298,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setNotifications((prev) => [
           ...prev,
-          `Hintergrund-Scan erfolgreich! "${newWine.name}" wurde in deinen Keller gelegt.`,
+          `Hintergrund-Scan erfolgreich! "${newWine.name}" wurde in deine Weinliste aufgenommen.`,
         ]);
       }
     } catch (err) {
@@ -321,6 +355,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       exportBackup,
       readBackupFile,
       applyImport,
+      moveWineriesToMerchant,
       
       queueItems,
       onlineStatus,

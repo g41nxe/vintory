@@ -159,7 +159,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
   };
 
   const getStepSubtitle = () => {
-    if (mode === 'photo-only') return 'Fotografiere deinen Wein für die Kellerkarte';
+    if (mode === 'photo-only') return 'Fotografiere deinen Wein für die Weinkarte';
     return step === 'front'
       ? 'Positioniere die Vorderseite des Weinetiketts gut sichtbar im Bild'
       : 'Die Rückseite (Backlabel) liefert oft präzise Rebsorten, Winzer und Details';

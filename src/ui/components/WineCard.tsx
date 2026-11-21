@@ -1,6 +1,14 @@
 import React from 'react';
-import { Wine } from '../../core/entities/Wine';
-import { Heart, Trash2, Plus, Minus, Star } from 'lucide-react';
+import { Wine, isOwned } from '../../core/entities/Wine';
+import { Heart, Trash2, Plus, Minus, Star, Store } from 'lucide-react';
+
+const MAX_CARD_TAGS = 3;
+
+/** YYYY-MM-DD → „14.11.“ (current year) or „14.11.2024“. */
+const formatShortDate = (iso: string): string => {
+  const [y, m, d] = iso.split('-');
+  return Number(y) === new Date().getFullYear() ? `${d}.${m}.` : `${d}.${m}.${y}`;
+};
 
 interface WineCardProps {
   wine: Wine;
@@ -17,6 +25,8 @@ export const WineCard: React.FC<WineCardProps> = ({
   onUpdateQuantity,
   onToggleFavorite
 }) => {
+  const owned = isOwned(wine);
+
   const renderStars = (rating: number) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -96,28 +106,60 @@ export const WineCard: React.FC<WineCardProps> = ({
             </span>
           </div>
           <p className="text-xs sm:text-sm text-gray-400 font-semibold truncate">
-            {wine.winery || 'Unbekanntes Weingut'}
+            {wine.winery || 'Unbekanntes Weingut'}{wine.year ? ` · ${wine.year}` : ''}
           </p>
-          <p className="text-[10px] sm:text-xs text-gray-500 truncate mt-0.5">
-            {wine.grape ? `${wine.grape} • ` : ''}{wine.region || 'Region unbekannt'} {wine.year ? `(${wine.year})` : ''}
-          </p>
+          {wine.merchant && (
+            <p className="text-[10px] sm:text-xs text-gray-500 truncate flex items-center gap-1">
+              <Store className="w-3 h-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{wine.merchant}</span>
+            </p>
+          )}
+          {wine.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {wine.tags.slice(0, MAX_CARD_TAGS).map((tag) => (
+                <span key={tag} className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/25 text-[#d4af37]">
+                  {tag}
+                </span>
+              ))}
+              {wine.tags.length > MAX_CARD_TAGS && (
+                <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-gray-400">
+                  +{wine.tags.length - MAX_CARD_TAGS}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Wine Stats, Actions and Rating Footer */}
-        <div className="flex items-center justify-between border-t border-white/5 pt-2 sm:pt-3 mt-1 sm:mt-2">
-          
-          {/* Star Rating & Price */}
-          <div className="flex flex-col gap-0.5">
+        <div className="flex items-center justify-between gap-2 border-t border-white/5 pt-2 sm:pt-3 mt-1 sm:mt-2">
+
+          {/* Star rating, tasting date & price – one short line each, never wrapping */}
+          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
             <div className="flex gap-0.5">
               {renderStars(wine.rating)}
             </div>
-            <span className="text-[10px] sm:text-xs text-[#d4af37] font-semibold mt-0.5">
-              {wine.price ? `${wine.price} €` : 'Preis offen'}
-            </span>
+            {wine.tastedAt && (
+              <span className="text-[10px] sm:text-xs text-gray-400 whitespace-nowrap truncate">
+                Verkostet {formatShortDate(wine.tastedAt)}
+              </span>
+            )}
+            {wine.price && (
+              <span className="text-[10px] sm:text-xs text-[#d4af37] font-semibold whitespace-nowrap truncate">
+                {wine.price} €
+              </span>
+            )}
           </div>
 
-          {/* Quantity Controller & Delete */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Owned / quantity & delete */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {!owned && (
+              <span className="text-[10px] sm:text-xs text-gray-500 whitespace-nowrap">nicht im Besitz</span>
+            )}
+            {owned && (
+            <div className="flex items-center gap-1.5">
+            <span className="hidden min-[380px]:inline text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-600/20 border border-emerald-500/30 text-emerald-400">
+              Im Besitz
+            </span>
             <div className="flex items-center bg-black/30 border border-white/5 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full gap-1">
               <button
                 onClick={(e) => {
@@ -143,6 +185,8 @@ export const WineCard: React.FC<WineCardProps> = ({
                 <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </button>
             </div>
+            </div>
+            )}
 
             <button
               onClick={(e) => {

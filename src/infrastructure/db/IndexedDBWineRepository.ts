@@ -1,4 +1,4 @@
-import { Wine } from '../../core/entities/Wine';
+import { Wine, withWineDefaults } from '../../core/entities/Wine';
 import { IWineRepository } from '../../core/repositories/IWineRepository';
 
 export class IndexedDBWineRepository implements IWineRepository {
@@ -43,7 +43,9 @@ export class IndexedDBWineRepository implements IWineRepository {
       const store = transaction.objectStore('wines');
       const request = store.getAll();
 
-      request.onsuccess = () => resolve(request.result as Wine[]);
+      // Older entries lack newer fields – fill defaults in memory only (ADR 0003).
+      request.onsuccess = () =>
+        resolve((request.result as Record<string, unknown>[]).map((raw) => withWineDefaults(raw)));
       request.onerror = () => reject(request.error);
     });
   }

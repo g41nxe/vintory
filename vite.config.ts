@@ -10,9 +10,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'icon.png'],
       manifest: {
-        name: 'Vintory – Dein exklusiver Weinkeller',
+        name: 'Vintory – Verkostungstagebuch und Weinkeller',
         short_name: 'Vintory',
-        description: 'Verwalte deinen Weinkeller exklusiv und smart mit KI-Etikettenscan.',
+        description: 'Halte verkostete und eigene Weine fest – mit KI-Etikettenscan.',
         theme_color: '#8c1c2e',
         background_color: '#12080a',
         display: 'standalone',

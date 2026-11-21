@@ -72,7 +72,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ preview, onCancel, onC
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-gray-300 leading-relaxed">
           Das Backup enthält <strong className="text-white">{plural(total, 'Wein', 'Weine')}</strong>:{' '}
-          {plural(preview.newCount, 'neuer', 'neue')}, {preview.alreadyPresentCount} bereits in deinem Keller.
+          {plural(preview.newCount, 'neuer', 'neue')}, {preview.alreadyPresentCount} bereits in deiner Weinliste.
           {preview.skipped > 0 && (
             <span className="block mt-1 text-amber-400">
               {plural(preview.skipped, 'ungültiger Eintrag wird', 'ungültige Einträge werden')} übersprungen.
@@ -95,9 +95,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ preview, onCancel, onC
           <button type="button" onClick={() => setMode('replace')} className={optionClass(mode === 'replace', true)}>
             <Replace className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
             <span>
-              <span className="block text-sm font-bold text-white">Keller ersetzen</span>
+              <span className="block text-sm font-bold text-white">Weinliste ersetzen</span>
               <span className="block text-xs text-gray-400 mt-0.5">
-                Löscht deinen aktuellen Keller ({plural(preview.currentCount, 'Wein', 'Weine')}) und übernimmt
+                Löscht deine aktuelle Weinliste ({plural(preview.currentCount, 'Wein', 'Weine')}) und übernimmt
                 genau das Backup.
               </span>
             </span>
@@ -108,7 +108,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ preview, onCancel, onC
           <div className="flex gap-2.5 bg-red-900/20 border border-red-500/30 rounded-2xl p-3 text-xs text-red-200 leading-relaxed">
             <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
             <span>
-              Zur Sicherheit wird dein aktueller Keller vorher als Datei heruntergeladen
+              Zur Sicherheit wird deine aktuelle Weinliste vorher als Datei heruntergeladen
               („…_vor_import.json“). Damit kannst du ihn jederzeit wiederherstellen.
             </span>
           </div>
@@ -132,7 +132,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ preview, onCancel, onC
             {busy
               ? 'Wird importiert...'
               : mode === 'replace'
-                ? 'Keller ersetzen'
+                ? 'Weinliste ersetzen'
                 : preview.newCount === 0
                   ? 'Nichts Neues zu importieren'
                   : `${plural(preview.newCount, 'Wein', 'Weine')} hinzufügen`}

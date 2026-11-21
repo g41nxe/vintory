@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useVintory, VintoryProvider, ImportPreview } from './ui/context/VintoryContext';
 import { ImportModal } from './ui/components/ImportModal';
+import { MerchantCleanupModal } from './ui/components/MerchantCleanupModal';
 import { BackupFormatError, ImportMode } from './core/services/backupImport';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { WineCard } from './ui/components/WineCard';
 import { ScannerModal } from './ui/components/ScannerModal';
 import { WineModal } from './ui/components/WineModal';
 import { FilterModal } from './ui/components/FilterModal';
-import { Wine } from './core/entities/Wine';
+import { Wine, DEFAULT_TAGS, isOwned } from './core/entities/Wine';
+import { OwnedFilter } from './ui/components/FilterModal';
 import { ExtractedWineData } from './core/services/GeminiService';
 import { 
   Camera,
@@ -18,8 +20,9 @@ import {
   Upload, 
   Wine as WineIcon, 
   TrendingUp, 
-  Heart, 
-  Database
+  Heart,
+  Database,
+  Store
 } from 'lucide-react';
 
 const VintoryAppContent: React.FC = () => {
@@ -31,6 +34,7 @@ const VintoryAppContent: React.FC = () => {
     exportBackup,
     readBackupFile,
     applyImport,
+    moveWineriesToMerchant,
 
     // Offline scan queue & notifications
     queueItems,
@@ -59,12 +63,19 @@ const VintoryAppContent: React.FC = () => {
   // Search, Filter & Sort states
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('Alle');
+  const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>('all');
+  const [merchantFilter, setMerchantFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('name-asc');
+  const filtersActive =
+    typeFilter !== 'Alle' || ownedFilter !== 'all' || merchantFilter !== '' || tagFilter.length > 0 || sortBy !== 'name-asc';
 
   // Modal open states
   const [scannerOpen, setScannerOpen] = useState(false);
   const [wineModalOpen, setWineModalOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const hasMerchantCleanupCandidates = wines.some((w) => w.winery.trim() && !w.merchant.trim());
 
   // Scanner operation mode: 'ocr' (read label) or 'photo-only' (just snapping cover photo)
   const [scannerMode, setScannerMode] = useState<'ocr' | 'photo-only'>('ocr');
@@ -77,20 +88,44 @@ const VintoryAppContent: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
 
+  // Merchants with wine count (most frequent first) and tags in use – for the filter dialog.
+  const merchants = useMemo(() => {
+    const counts = new Map<string, number>();
+    wines.forEach((w) => {
+      const m = w.merchant.trim();
+      if (m) counts.set(m, (counts.get(m) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }, [wines]);
+
+  const tagsInUse = useMemo(() => {
+    const used = new Set<string>();
+    wines.forEach((w) => w.tags.forEach((t) => used.add(t)));
+    const defaults = DEFAULT_TAGS.filter((t) => used.has(t));
+    const custom = [...used].filter((t) => !(DEFAULT_TAGS as readonly string[]).includes(t)).sort((a, b) => a.localeCompare(b));
+    return [...defaults, ...custom];
+  }, [wines]);
+
   // --- Search & Filter Logic ---
   const filteredWines = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
     return wines.filter((wine) => {
-      const matchesSearch = 
-        wine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wine.winery.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wine.region.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        wine.grape.toLowerCase().includes(searchTerm.toLowerCase());
-      
+      const matchesSearch =
+        !term ||
+        [wine.name, wine.winery, wine.merchant, wine.region, wine.grape, wine.comment, ...wine.tags].some((field) =>
+          field.toLowerCase().includes(term)
+        );
       const matchesType = typeFilter === 'Alle' || wine.type === typeFilter;
+      const matchesOwned =
+        ownedFilter === 'all' || (ownedFilter === 'owned' ? isOwned(wine) : !isOwned(wine));
+      const matchesMerchant = !merchantFilter || wine.merchant.trim() === merchantFilter;
+      const matchesTags = tagFilter.every((t) => wine.tags.includes(t));
 
-      return matchesSearch && matchesType;
+      return matchesSearch && matchesType && matchesOwned && matchesMerchant && matchesTags;
     });
-  }, [wines, searchTerm, typeFilter]);
+  }, [wines, searchTerm, typeFilter, ownedFilter, merchantFilter, tagFilter]);
 
   // --- Sorting Logic ---
   const sortedWines = useMemo(() => {
@@ -107,12 +142,13 @@ const VintoryAppContent: React.FC = () => {
           return (a.year || 0) - (b.year || 0);
         case 'rating-desc':
           return b.rating - a.rating;
+        case 'tasted-desc':
+          // Newest tasting first, wines without a date at the end.
+          return (b.tastedAt || '').localeCompare(a.tastedAt || '');
         case 'qty-desc':
           return b.quantity - a.quantity;
         case 'price-desc':
-          const priceA = parseFloat(a.price) || 0;
-          const priceB = parseFloat(b.price) || 0;
-          return priceB - priceA;
+          return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0);
         default:
           return 0;
       }
@@ -122,19 +158,16 @@ const VintoryAppContent: React.FC = () => {
 
   // --- Real-time statistics calculations ---
   const stats = useMemo(() => {
-    const totalDifferent = wines.length;
-    const totalBottles = wines.reduce((sum, w) => sum + w.quantity, 0);
-    const totalFavorites = wines.filter((w) => w.isFavorite).length;
-    const totalValue = wines.reduce((sum, w) => {
-      const price = parseFloat(w.price) || 0;
-      return sum + (price * w.quantity);
-    }, 0);
+    const owned = wines.filter(isOwned);
+    // Value only counts wines in possession (price × bottles).
+    const ownedValue = owned.reduce((sum, w) => sum + (parseFloat(w.price) || 0) * w.quantity, 0);
 
     return {
-      totalDifferent,
-      totalBottles,
-      totalFavorites,
-      totalValue: totalValue.toFixed(2)
+      totalWines: wines.length,
+      totalOwned: owned.length,
+      totalBottles: owned.reduce((sum, w) => sum + w.quantity, 0),
+      totalFavorites: wines.filter((w) => w.isFavorite).length,
+      ownedValue: ownedValue.toFixed(2)
     };
   }, [wines]);
 
@@ -214,12 +247,12 @@ const VintoryAppContent: React.FC = () => {
       setImportPreview(null);
       alert(
         mode === 'replace'
-          ? `Keller ersetzt: ${written} ${written === 1 ? 'Wein' : 'Weine'} aus dem Backup übernommen.`
+          ? `Weinliste ersetzt: ${written} ${written === 1 ? 'Wein' : 'Weine'} aus dem Backup übernommen.`
           : `${written} ${written === 1 ? 'Wein' : 'Weine'} hinzugefügt. Vorhandene Weine wurden nicht verändert.`
       );
     } catch (err) {
       console.error('Backup import failed:', err);
-      alert('Import fehlgeschlagen. Dein Keller wurde nicht verändert.');
+      alert('Import fehlgeschlagen. Deine Weinliste wurde nicht verändert.');
     }
   };
 
@@ -228,7 +261,7 @@ const VintoryAppContent: React.FC = () => {
       <div className="min-h-screen bg-[#0a0506] flex flex-col items-center justify-center gap-4 text-white">
         <div className="loading-ring w-12 h-12" />
         <p className="text-sm font-semibold tracking-widest text-[#d4af37] uppercase animate-pulse">
-          Vintory Keller wird poliert...
+          Vintory wird entkorkt...
         </p>
       </div>
     );
@@ -247,7 +280,7 @@ const VintoryAppContent: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs text-gray-400 mt-1 font-semibold">
-            Dein exklusiver, intelligenter Weinkeller
+            Dein Verkostungstagebuch und Weinkeller
           </p>
         </div>
 
@@ -298,13 +331,13 @@ const VintoryAppContent: React.FC = () => {
         <button
           onClick={() => setFilterModalOpen(true)}
           className={`relative flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[#f3e8eb] cursor-pointer transition-all shrink-0 ${
-            (typeFilter !== 'Alle' || sortBy !== 'name-asc') ? 'border-[#d4af37]/45 text-[#d4af37]' : ''
+            filtersActive ? 'border-[#d4af37]/45 text-[#d4af37]' : ''
           }`}
           title="Filter & Sortierung öffnen"
         >
           <Filter className="w-5 h-5" />
           {/* Active Filter Indicator */}
-          {(typeFilter !== 'Alle' || sortBy !== 'name-asc') && (
+          {filtersActive && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#d4af37] border border-[#12080a] rounded-full animate-pulse" />
           )}
         </button>
@@ -352,7 +385,7 @@ const VintoryAppContent: React.FC = () => {
           <div className="flex flex-col items-center justify-center p-12 bg-white/5 border border-dashed border-white/10 rounded-3xl text-center gap-4 mt-6">
             <span className="text-5xl">🍷</span>
             <div>
-              <h3 className="text-lg font-bold text-white">Dein Weinkeller ist noch leer</h3>
+              <h3 className="text-lg font-bold text-white">Deine Weinliste ist noch leer</h3>
               <p className="text-xs text-gray-400 max-w-sm mt-1 leading-relaxed">
                 Füge deinen ersten Wein manuell hinzu oder scanne das Flaschenetikett direkt ein, damit unsere Sommelier-KI den Eintrag für dich anlegt!
               </p>
@@ -376,8 +409,8 @@ const VintoryAppContent: React.FC = () => {
             <WineIcon className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Rebsorten</p>
-            <h4 className="text-lg font-bold text-white">{stats.totalDifferent}</h4>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Weine</p>
+            <h4 className="text-lg font-bold text-white">{stats.totalWines}</h4>
           </div>
         </div>
 
@@ -386,8 +419,8 @@ const VintoryAppContent: React.FC = () => {
             <Database className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Flaschen total</p>
-            <h4 className="text-lg font-bold text-white">{stats.totalBottles}</h4>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Im Besitz</p>
+            <h4 className="text-lg font-bold text-white">{stats.totalOwned}{stats.totalBottles > stats.totalOwned && <span className="text-xs text-gray-400 font-semibold"> · {stats.totalBottles} Fl.</span>}</h4>
           </div>
         </div>
 
@@ -406,8 +439,8 @@ const VintoryAppContent: React.FC = () => {
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Geschätzter Wert</p>
-            <h4 className="text-lg font-bold text-[#d4af37]">{stats.totalValue} €</h4>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Wert im Besitz</p>
+            <h4 className="text-lg font-bold text-[#d4af37]">{stats.ownedValue} €</h4>
           </div>
         </div>
 
@@ -415,12 +448,23 @@ const VintoryAppContent: React.FC = () => {
 
       {/* UTILITY FOOTER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-white/5 text-xs text-gray-500 mt-2">
-        <p>© {new Date().getFullYear()} Vintory Keller. Alle Rechte vorbehalten.</p>
-        <div className="flex gap-2">
+        <p>© {new Date().getFullYear()} Vintory. Alle Rechte vorbehalten.</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {hasMerchantCleanupCandidates && (
+            <button
+              onClick={() => setCleanupOpen(true)}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-[#d4af37] transition-all cursor-pointer"
+              title="Händler, die unter „Weingut“ stehen, ins Feld „Händler“ verschieben"
+            >
+              <Store className="w-3.5 h-3.5" />
+              Händler aufräumen
+            </button>
+          )}
+
           <button
             onClick={exportBackup}
             className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer"
-            title="Keller-Backup herunterladen"
+            title="Backup der Weinliste herunterladen"
           >
             <Download className="w-3.5 h-3.5" />
             Export
@@ -429,7 +473,7 @@ const VintoryAppContent: React.FC = () => {
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold rounded-xl text-white transition-all cursor-pointer"
-            title="Keller-Backup hochladen"
+            title="Backup der Weinliste hochladen"
           >
             <Upload className="w-3.5 h-3.5" />
             Import
@@ -446,6 +490,13 @@ const VintoryAppContent: React.FC = () => {
       </div>
 
       {/* ALL MODAL WINDOWS */}
+      <MerchantCleanupModal
+        isOpen={cleanupOpen}
+        wines={wines}
+        onClose={() => setCleanupOpen(false)}
+        onConfirm={moveWineriesToMerchant}
+      />
+
       <ImportModal
         preview={importPreview}
         onCancel={() => setImportPreview(null)}
@@ -457,6 +508,14 @@ const VintoryAppContent: React.FC = () => {
         onClose={() => setFilterModalOpen(false)}
         typeFilter={typeFilter}
         setTypeFilter={setTypeFilter}
+        ownedFilter={ownedFilter}
+        setOwnedFilter={setOwnedFilter}
+        merchantFilter={merchantFilter}
+        setMerchantFilter={setMerchantFilter}
+        merchants={merchants}
+        tagFilter={tagFilter}
+        setTagFilter={setTagFilter}
+        availableTags={tagsInUse}
         sortBy={sortBy}
         setSortBy={setSortBy}
       />

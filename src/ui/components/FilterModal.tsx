@@ -1,24 +1,63 @@
 import React from 'react';
 import { X, Filter, ArrowUpDown, RotateCcw, Check } from 'lucide-react';
 
+export type OwnedFilter = 'all' | 'owned' | 'not-owned';
+
 interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
   typeFilter: string;
   setTypeFilter: (type: string) => void;
+  ownedFilter: OwnedFilter;
+  setOwnedFilter: (filter: OwnedFilter) => void;
+  /** '' = all merchants. */
+  merchantFilter: string;
+  setMerchantFilter: (merchant: string) => void;
+  /** Merchants in the list with their wine count, most frequent first. */
+  merchants: { name: string; count: number }[];
+  /** Selected tags – a wine must have ALL of them. */
+  tagFilter: string[];
+  setTagFilter: (tags: string[]) => void;
+  availableTags: string[];
   sortBy: string;
   setSortBy: (sort: string) => void;
 }
+
+const sectionTitle = 'text-xs font-bold text-gray-400 uppercase tracking-wider';
+const chipClass = (active: boolean) =>
+  `px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+    active
+      ? 'bg-[#d4af37]/10 border-[#d4af37]/45 text-[#d4af37]'
+      : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+  }`;
 
 export const FilterModal: React.FC<FilterModalProps> = ({
   isOpen,
   onClose,
   typeFilter,
   setTypeFilter,
+  ownedFilter,
+  setOwnedFilter,
+  merchantFilter,
+  setMerchantFilter,
+  merchants,
+  tagFilter,
+  setTagFilter,
+  availableTags,
   sortBy,
   setSortBy
 }) => {
   if (!isOpen) return null;
+
+  const ownedOptions: { value: OwnedFilter; label: string }[] = [
+    { value: 'all', label: 'Alle' },
+    { value: 'owned', label: 'Im Besitz' },
+    { value: 'not-owned', label: 'Nicht im Besitz' },
+  ];
+
+  const toggleTagFilter = (tag: string) => {
+    setTagFilter(tagFilter.includes(tag) ? tagFilter.filter((t) => t !== tag) : [...tagFilter, tag]);
+  };
 
   const wineTypes = [
     { value: 'Alle', label: 'Alle Weintypen', emoji: '🍷', color: 'bg-white/5 border-white/10 text-white hover:bg-white/10' },
@@ -34,12 +73,16 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     { value: 'year-desc', label: 'Jahrgang (Neu-Alt)' },
     { value: 'year-asc', label: 'Jahrgang (Alt-Neu)' },
     { value: 'rating-desc', label: 'Beste Bewertung' },
+    { value: 'tasted-desc', label: 'Zuletzt verkostet' },
     { value: 'qty-desc', label: 'Meiste Flaschen' },
     { value: 'price-desc', label: 'Teuerster Preis' }
   ];
 
   const handleReset = () => {
     setTypeFilter('Alle');
+    setOwnedFilter('all');
+    setMerchantFilter('');
+    setTagFilter([]);
     setSortBy('name-asc');
   };
 
@@ -73,7 +116,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           </div>
           <div>
             <h2 className="text-xl font-bold text-[#f3e8eb] tracking-tight">Filter & Sortierung</h2>
-            <p className="text-xs text-gray-400">Passe deine Keller-Ansicht an</p>
+            <p className="text-xs text-gray-400">Passe die Ansicht deiner Weinliste an</p>
           </div>
         </div>
 
@@ -102,6 +145,81 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             })}
           </div>
         </div>
+
+        {/* --- Besitz --- */}
+        <div className="flex flex-col gap-2.5">
+          <h3 className={sectionTitle}>Besitz</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {ownedOptions.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={ownedFilter === opt.value}
+                onClick={() => setOwnedFilter(opt.value)}
+                className={chipClass(ownedFilter === opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* --- Händler --- */}
+        {merchants.length > 0 && (
+          <div className="flex flex-col gap-2.5">
+            <h3 className={sectionTitle}>Händler</h3>
+            <div className="flex flex-col gap-1.5 max-h-[180px] overflow-y-auto pr-1">
+              {[{ name: '', count: 0 }, ...merchants].map((m) => {
+                const isSelected = merchantFilter === m.name;
+                return (
+                  <button
+                    key={m.name || '__all__'}
+                    type="button"
+                    onClick={() => setMerchantFilter(m.name)}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#d4af37]/10 border-[#d4af37]/45 text-[#d4af37]'
+                        : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <span className="truncate">{m.name ? `${m.name} (${m.count})` : 'Alle Händler'}</span>
+                    {isSelected && <Check className="w-4 h-4 text-[#d4af37] shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* --- Schlagwörter --- */}
+        {availableTags.length > 0 && (
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className={sectionTitle}>Eindruck</h3>
+              {tagFilter.length > 1 && <span className="text-[10px] text-gray-500">Weine mit allen gewählten</span>}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {availableTags.map((tag) => {
+                const active = tagFilter.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => toggleTagFilter(tag)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                      active
+                        ? 'bg-[#d4af37]/20 border-[#d4af37]/60 text-[#d4af37]'
+                        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* --- Sortierung nach --- */}
         <div className="flex flex-col gap-2.5">
