@@ -106,6 +106,20 @@ export class IndexedDBWineRepository implements IWineRepository {
     });
   }
 
+  async saveMany(wines: Wine[]): Promise<void> {
+    if (wines.length === 0) return;
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      // One transaction: either all wines are written or none (aborts on error).
+      const transaction = db.transaction('wines', 'readwrite');
+      const store = transaction.objectStore('wines');
+      wines.forEach((wine) => store.put(wine));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
   async getSetting(key: string): Promise<string> {
     const db = await this.initDB();
     return new Promise((resolve, reject) => {

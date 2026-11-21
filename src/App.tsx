@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { useVintory, VintoryProvider } from './ui/context/VintoryContext';
+import { useVintory, VintoryProvider, ImportPreview } from './ui/context/VintoryContext';
+import { ImportModal } from './ui/components/ImportModal';
+import { BackupFormatError, ImportMode } from './core/services/backupImport';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { WineCard } from './ui/components/WineCard';
 import { ScannerModal } from './ui/components/ScannerModal';
@@ -27,8 +29,9 @@ const VintoryAppContent: React.FC = () => {
     saveWine,
     deleteWine,
     exportBackup,
-    importBackup,
-    
+    readBackupFile,
+    applyImport,
+
     // Offline scan queue & notifications
     queueItems,
     onlineStatus,
@@ -72,6 +75,7 @@ const VintoryAppContent: React.FC = () => {
   const [scannedData, setScannedData] = useState<Partial<Wine> | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
 
   // --- Search & Filter Logic ---
   const filteredWines = useMemo(() => {
@@ -187,12 +191,35 @@ const VintoryAppContent: React.FC = () => {
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset so selecting the same file again triggers onChange.
+    e.target.value = '';
     if (!file) return;
-    const success = await importBackup(file);
-    if (success) {
-      alert("Backup erfolgreich importiert!");
-    } else {
-      alert("Fehler beim Importieren des Backups. Bitte Format prüfen.");
+    try {
+      // Only reads and validates – nothing is changed until the user confirms.
+      setImportPreview(await readBackupFile(file));
+    } catch (err) {
+      console.error('Backup could not be read:', err);
+      alert(
+        err instanceof BackupFormatError
+          ? `Backup kann nicht importiert werden: ${err.message}`
+          : 'Die Datei konnte nicht gelesen werden.'
+      );
+    }
+  };
+
+  const handleConfirmImport = async (mode: ImportMode) => {
+    if (!importPreview) return;
+    try {
+      const written = await applyImport(importPreview.wines, mode);
+      setImportPreview(null);
+      alert(
+        mode === 'replace'
+          ? `Keller ersetzt: ${written} ${written === 1 ? 'Wein' : 'Weine'} aus dem Backup übernommen.`
+          : `${written} ${written === 1 ? 'Wein' : 'Weine'} hinzugefügt. Vorhandene Weine wurden nicht verändert.`
+      );
+    } catch (err) {
+      console.error('Backup import failed:', err);
+      alert('Import fehlgeschlagen. Dein Keller wurde nicht verändert.');
     }
   };
 
@@ -419,6 +446,12 @@ const VintoryAppContent: React.FC = () => {
       </div>
 
       {/* ALL MODAL WINDOWS */}
+      <ImportModal
+        preview={importPreview}
+        onCancel={() => setImportPreview(null)}
+        onConfirm={handleConfirmImport}
+      />
+
       <FilterModal
         isOpen={filterModalOpen}
         onClose={() => setFilterModalOpen(false)}

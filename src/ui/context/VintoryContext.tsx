@@ -2,6 +2,19 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { Wine } from '../../core/entities/Wine';
 import { IndexedDBWineRepository } from '../../infrastructure/db/IndexedDBWineRepository';
 import { GeminiService, ScanError } from '../../core/services/GeminiService';
+import { ImportMode, parseBackup, winesToAddOnMerge } from '../../core/services/backupImport';
+
+export interface ImportPreview {
+  wines: Wine[];
+  /** Unusable entries in the file. */
+  skipped: number;
+  /** Wines in the file that are not in the cellar yet. */
+  newCount: number;
+  /** Wines in the file whose id already exists in the cellar. */
+  alreadyPresentCount: number;
+  /** Wines currently in the cellar. */
+  currentCount: number;
+}
 
 const repository = new IndexedDBWineRepository();
 const geminiService = new GeminiService();
@@ -22,7 +35,10 @@ interface VintoryContextType {
   saveWine: (wine: Wine) => Promise<void>;
   deleteWine: (id: string) => Promise<void>;
   exportBackup: () => Promise<void>;
-  importBackup: (file: File) => Promise<boolean>;
+  /** Reads and validates a backup file without changing any data. Throws BackupFormatError. */
+  readBackupFile: (file: File) => Promise<ImportPreview>;
+  /** Writes previously read wines. Returns the number of wines written. */
+  applyImport: (wines: Wine[], mode: ImportMode) => Promise<number>;
   
   // Offline scan queue & notifications
   queueItems: QueueItem[];
@@ -108,43 +124,56 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setWines(list);
   };
 
-  const exportBackup = async () => {
-    const list = await repository.getAll();
+  const downloadWinesAsBackup = (list: Wine[], fileSuffix = '') => {
     const dataStr = JSON.stringify(list, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `vintory_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `vintory_backup_${new Date().toISOString().split('T')[0]}${fileSuffix}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Revoke later: some browsers start the download asynchronously.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   };
 
-  const importBackup = async (file: File): Promise<boolean> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const content = e.target?.result as string;
-          const list = JSON.parse(content);
-          if (Array.isArray(list)) {
-            await repository.saveBatch(list);
-            const updated = await repository.getAll();
-            setWines(updated);
-            resolve(true);
-          } else {
-            resolve(false);
-          }
-        } catch (err) {
-          console.error("Backup import error:", err);
-          resolve(false);
-        }
-      };
-      reader.onerror = () => resolve(false);
-      reader.readAsText(file);
-    });
+  const exportBackup = async () => {
+    downloadWinesAsBackup(await repository.getAll());
+  };
+
+  // Step 1 of an import: read + validate the file. Nothing is written yet.
+  const readBackupFile = async (file: File): Promise<ImportPreview> => {
+    const { wines: imported, skipped } = parseBackup(await file.text());
+    const existing = await repository.getAll();
+    const newCount = winesToAddOnMerge(existing, imported).length;
+    return {
+      wines: imported,
+      skipped,
+      newCount,
+      alreadyPresentCount: imported.length - newCount,
+      currentCount: existing.length,
+    };
+  };
+
+  // Step 2 of an import: apply it in the mode the user chose.
+  const applyImport = async (imported: Wine[], mode: ImportMode): Promise<number> => {
+    const existing = await repository.getAll();
+    let written: number;
+    if (mode === 'replace') {
+      // Safety net: download the current cellar before it gets replaced.
+      if (existing.length > 0) {
+        downloadWinesAsBackup(existing, '_vor_import');
+      }
+      await repository.saveBatch(imported);
+      written = imported.length;
+    } else {
+      const toAdd = winesToAddOnMerge(existing, imported);
+      await repository.saveMany(toAdd);
+      written = toAdd.length;
+    }
+    setWines(await repository.getAll());
+    return written;
   };
 
   // --- Offline queue management ---
@@ -290,7 +319,8 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       saveWine,
       deleteWine,
       exportBackup,
-      importBackup,
+      readBackupFile,
+      applyImport,
       
       queueItems,
       onlineStatus,
