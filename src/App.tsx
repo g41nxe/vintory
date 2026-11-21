@@ -11,6 +11,7 @@ import { WineModal } from './ui/components/WineModal';
 import { FilterModal } from './ui/components/FilterModal';
 import { Wine, DEFAULT_TAGS, isOwned } from './core/entities/Wine';
 import { OwnedFilter } from './ui/components/FilterModal';
+import { priceValue } from './core/entities/price';
 import { ExtractedWineData } from './core/services/GeminiService';
 import { 
   Camera,
@@ -159,7 +160,8 @@ const VintoryAppContent: React.FC = () => {
         case 'qty-desc':
           return b.quantity - a.quantity;
         case 'price-desc':
-          return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0);
+          // Ranges count with their midpoint, "12,50" with its decimals.
+          return priceValue(b.price) - priceValue(a.price);
         default:
           return 0;
       }
@@ -171,14 +173,14 @@ const VintoryAppContent: React.FC = () => {
   const stats = useMemo(() => {
     const owned = wines.filter(isOwned);
     // Value only counts wines in possession (price × bottles).
-    const ownedValue = owned.reduce((sum, w) => sum + (parseFloat(w.price) || 0) * w.quantity, 0);
+    const ownedValue = owned.reduce((sum, w) => sum + priceValue(w.price) * w.quantity, 0);
 
     return {
       totalWines: wines.length,
       totalOwned: owned.length,
       totalBottles: owned.reduce((sum, w) => sum + w.quantity, 0),
       totalFavorites: wines.filter((w) => w.isFavorite).length,
-      ownedValue: ownedValue.toFixed(2)
+      ownedValue: ownedValue.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     };
   }, [wines]);
 
