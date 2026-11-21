@@ -53,10 +53,10 @@ const VintoryAppContent: React.FC = () => {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r: any) {
+    onRegistered(r: ServiceWorkerRegistration | undefined) {
       console.log('Vintory SW Registered:', r);
     },
-    onRegisterError(error: any) {
+    onRegisterError(error: unknown) {
       console.error('Vintory SW Register Error:', error);
     }
   });

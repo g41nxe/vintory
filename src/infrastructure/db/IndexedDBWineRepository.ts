@@ -1,5 +1,6 @@
 import { Wine, withWineDefaults } from '../../core/entities/Wine';
 import { IWineRepository } from '../../core/repositories/IWineRepository';
+import { ScanQueueItem } from '../../core/entities/ScanQueueItem';
 
 export class IndexedDBWineRepository implements IWineRepository {
   private db: IDBDatabase | null = null;
@@ -147,19 +148,19 @@ export class IndexedDBWineRepository implements IWineRepository {
   }
 
   // --- Scan Queue Management ---
-  async getQueueItems(): Promise<any[]> {
+  async getQueueItems(): Promise<ScanQueueItem[]> {
     const db = await this.initDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('scanQueue', 'readonly');
       const store = transaction.objectStore('scanQueue');
       const request = store.getAll();
 
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result as ScanQueueItem[]);
       request.onerror = () => reject(request.error);
     });
   }
 
-  async saveQueueItem(item: any): Promise<void> {
+  async saveQueueItem(item: ScanQueueItem): Promise<void> {
     const db = await this.initDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction('scanQueue', 'readwrite');

@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'icon.png'],
+      includeAssets: ['icon.png'],
       manifest: {
         name: 'Vintory – Verkostungstagebuch und Weinkeller',
         short_name: 'Vintory',

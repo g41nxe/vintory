@@ -75,10 +75,10 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
       // Trigger success callback
       onScanComplete(wineData, frontImg);
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Scan analysis failed:", err);
       setFailedImages({ front: frontImg, back: backImg });
-      setScanError(err.message || "Etikett konnte nicht gelesen werden. Bitte erneut versuchen.");
+      setScanError(err instanceof Error && err.message ? err.message : "Etikett konnte nicht gelesen werden. Bitte erneut versuchen.");
       setLoading(false);
     }
   };
@@ -140,7 +140,7 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({
         await runOCRAnalysis(frontImage!, imageBase64);
       }
 
-    } catch (err: any) {
+    } catch (err) {
       console.error("Capture processing failed:", err);
       setScanError("Foto konnte nicht verarbeitet werden. Bitte erneut versuchen.");
     }

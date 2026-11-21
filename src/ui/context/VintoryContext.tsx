@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Wine, generateWineId, withWineDefaults } from '../../core/entities/Wine';
+import { ScanQueueItem } from '../../core/entities/ScanQueueItem';
 import { getNewWineOwnedDefault } from '../preferences';
 import { IndexedDBWineRepository } from '../../infrastructure/db/IndexedDBWineRepository';
 import { GeminiService, ScanError } from '../../core/services/GeminiService';
@@ -9,11 +10,11 @@ export interface ImportPreview {
   wines: Wine[];
   /** Unusable entries in the file. */
   skipped: number;
-  /** Wines in the file that are not in the cellar yet. */
+  /** Wines in the file that are not in the list yet. */
   newCount: number;
-  /** Wines in the file whose id already exists in the cellar. */
+  /** Wines in the file whose id already exists in the list. */
   alreadyPresentCount: number;
-  /** Wines currently in the cellar. */
+  /** Wines currently in the list. */
   currentCount: number;
 }
 
@@ -22,13 +23,7 @@ const geminiService = new GeminiService();
 
 const AUTO_RETRY_PAUSE_MS = 5 * 60 * 1000;
 
-export interface QueueItem {
-  id: string;
-  frontImage: string;
-  backImage: string | null;
-  timestamp: number;
-  status: 'pending' | 'processing' | 'failed';
-}
+export type QueueItem = ScanQueueItem;
 
 interface VintoryContextType {
   wines: Wine[];
@@ -107,7 +102,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // 3. Load scan queue items.
         // Items still marked 'processing' were interrupted (tab closed mid-scan):
         // put them back to 'pending' so they are not stuck forever.
-        const queueList = (await repository.getQueueItems()) as QueueItem[];
+        const queueList = await repository.getQueueItems();
         const interrupted = queueList.filter((item) => item.status === 'processing');
         await Promise.all(interrupted.map((item) => repository.saveQueueItem({ ...item, status: 'pending' })));
         setQueueItems(interrupted.length > 0 ? await repository.getQueueItems() : queueList);
@@ -243,7 +238,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     let addedWines = 0;
     try {
-      const items = (await repository.getQueueItems()) as QueueItem[];
+      const items = await repository.getQueueItems();
       const todo = items
         .filter((item) => item.status === 'pending' || (retryFailed && item.status === 'failed'))
         .sort((a, b) => a.timestamp - b.timestamp);
