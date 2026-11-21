@@ -21,12 +21,9 @@ Alles bleibt auf deinem Gerät.
 
 ---
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="docs/images/weinliste.jpg" alt="Weinliste mit Händlern, Schlagwörtern und Besitz" width="280" /><br /><sub>Weinliste: Händler, Eindruck, Bewertung, Besitz</sub></td>
-    <td align="center" width="50%"><img src="docs/images/erfassen.jpg" alt="Erfassungsdialog mit Verkostungsdatum, Kommentar und Schlagwörtern" width="280" /><br /><sub>Erfassen: Verkostet am, Kommentar, Schlagwörter</sub></td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/images/vorschau.png" alt="Vintory auf dem Handy: Weinliste mit Händlern, Schlagwörtern und Besitz, daneben der Dialog zum Erfassen einer Verkostung" width="760" />
+</p>
 
 ## Was Vintory kann
 
