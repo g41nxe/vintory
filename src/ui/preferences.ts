@@ -20,3 +20,22 @@ export const setNewWineOwnedDefault = (owned: boolean): void => {
     // ignore – only a convenience
   }
 };
+
+const MERCHANT_CLEANUP_DONE_KEY = 'vintory_merchant_cleanup_done';
+
+/** Whether „Händler aufräumen“ was already used on this device – then the button is hidden. */
+export const isMerchantCleanupDone = (): boolean => {
+  try {
+    return localStorage.getItem(MERCHANT_CLEANUP_DONE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+export const markMerchantCleanupDone = (): void => {
+  try {
+    localStorage.setItem(MERCHANT_CLEANUP_DONE_KEY, 'true');
+  } catch {
+    // ignore – only a convenience
+  }
+};

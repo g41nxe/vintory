@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { useVintory, VintoryProvider, ImportPreview } from './ui/context/VintoryContext';
 import { ImportModal } from './ui/components/ImportModal';
 import { MerchantCleanupModal } from './ui/components/MerchantCleanupModal';
+import { isMerchantCleanupDone, markMerchantCleanupDone } from './ui/preferences';
 import { BackupFormatError, ImportMode } from './core/services/backupImport';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { WineCard } from './ui/components/WineCard';
@@ -75,7 +76,17 @@ const VintoryAppContent: React.FC = () => {
   const [wineModalOpen, setWineModalOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
-  const hasMerchantCleanupCandidates = wines.some((w) => w.winery.trim() && !w.merchant.trim());
+  // „Händler aufräumen“ is a one-off: hidden for good once it was used on this device.
+  const [cleanupDone, setCleanupDone] = useState(isMerchantCleanupDone);
+  const hasMerchantCleanupCandidates =
+    !cleanupDone && wines.some((w) => w.winery.trim() && !w.merchant.trim());
+
+  const handleMerchantCleanup = async (wineries: string[]) => {
+    const changed = await moveWineriesToMerchant(wineries);
+    markMerchantCleanupDone();
+    setCleanupDone(true);
+    return changed;
+  };
 
   // Scanner operation mode: 'ocr' (read label) or 'photo-only' (just snapping cover photo)
   const [scannerMode, setScannerMode] = useState<'ocr' | 'photo-only'>('ocr');
@@ -494,7 +505,7 @@ const VintoryAppContent: React.FC = () => {
         isOpen={cleanupOpen}
         wines={wines}
         onClose={() => setCleanupOpen(false)}
-        onConfirm={moveWineriesToMerchant}
+        onConfirm={handleMerchantCleanup}
       />
 
       <ImportModal
