@@ -470,11 +470,12 @@ const VintoryAppContent: React.FC = () => {
       {/* UTILITY FOOTER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t border-white/5 text-xs text-gray-500 mt-2">
         <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <span>© {new Date().getFullYear()} Vintory</span>
+          <span>
+            Created by{' '}
+            <a href="https://github.com/g41nxe" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#d4af37] underline underline-offset-2">g41nxe</a>
+          </span>
           <span aria-hidden="true">·</span>
           <a href="/datenschutz.html" className="text-gray-400 hover:text-[#d4af37] underline underline-offset-2">Datenschutz</a>
-          <span aria-hidden="true">·</span>
-          <a href="https://github.com/g41nxe/vintory/blob/master/LICENSE.md" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#d4af37] underline underline-offset-2">Lizenz</a>
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           {hasMerchantCleanupCandidates && (

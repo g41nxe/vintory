@@ -81,7 +81,7 @@ type LimitResult = { ok: true } | { ok: false; status: number; error: string };
 const checkAndCountScan = async (ip: string): Promise<LimitResult> => {
   const limitPerDay = limitFromEnv('SCAN_LIMIT_PER_DAY', DEFAULT_LIMIT_PER_DAY);
   const limitPerIpHour = limitFromEnv('SCAN_LIMIT_PER_IP_HOUR', DEFAULT_LIMIT_PER_IP_HOUR);
-  const store = getStore({ name: 'scan-limits', consistency: 'strong' });
+  const store = getStore({ name: 'scan-limits', consistency: 'strong', region: 'eu-central-1' });
   const { day, hour } = berlinTimeSlots();
   const dayKey = `day/${day}`;
   const ipKey = `ip-hour/${hour}/${await hashIp(ip)}`;
@@ -111,17 +111,7 @@ const checkAndCountScan = async (ip: string): Promise<LimitResult> => {
     store.setJSON(ipKey, (ipCount ?? 0) + 1),
   ]);
 
-  // First scan of the day: remove hourly IP counters from previous days.
-  if (!dayCount) {
-    try {
-      const { blobs } = await store.list({ prefix: 'ip-hour/' });
-      await Promise.all(
-        blobs.filter((b) => !b.key.startsWith(`ip-hour/${day}`)).map((b) => store.delete(b.key))
-      );
-    } catch (e) {
-      console.error('Cleanup of old scan counters failed', e);
-    }
-  }
+  // Old per-IP counters are removed hourly by cleanup-scan-limits.mts.
 
   return { ok: true };
 };

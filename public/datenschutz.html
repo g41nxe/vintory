@@ -50,26 +50,36 @@
   <p>
     Die App wird von Netlify, Inc. (San Francisco, USA) ausgeliefert. Beim Aufruf verarbeitet Netlify technisch notwendige Daten wie deine
     IP-Adresse, Datum und Uhrzeit, die aufgerufene Adresse und Browser-Informationen, um die Seite auszuliefern und den Betrieb zu sichern.
-    Dabei kann es zu einer Verarbeitung in den USA kommen. Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und
-    funktionsfähigen Bereitstellung (Art. 6 Abs. 1 lit. f DSGVO). Mehr dazu: <a href="https://www.netlify.com/privacy/" rel="noopener">Datenschutzerklärung von Netlify</a>.
+    Netlify speichert diese Protokolldaten nur für begrenzte Zeit. Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und
+    funktionsfähigen Bereitstellung (Art. 6 Abs. 1 lit. f DSGVO).
+  </p>
+  <p>
+    Dabei kann es zu einer Übermittlung in die USA kommen. Netlify ist nach dem EU-US Data Privacy Framework zertifiziert (Angemessenheitsbeschluss
+    der EU-Kommission, Art. 45 DSGVO); ergänzend gelten die EU-Standardvertragsklauseln. Mit Netlify besteht ein Vertrag zur Auftragsverarbeitung
+    (Art. 28 DSGVO). Mehr dazu: <a href="https://www.netlify.com/privacy/" rel="noopener">Datenschutzerklärung von Netlify</a>.
   </p>
 
   <h2>Etikett-Scan mit Google Gemini</h2>
   <p>
     Wenn du ein Etikett scannst, sendet die App die Fotos (Vorderseite, optional Rückseite; verkleinert auf höchstens 600 Pixel) an unseren
-    Server bei Netlify. Dieser leitet sie zur Auswertung an die Gemini-API von Google weiter und gibt dir das Ergebnis zurück
-    (Name, Weingut, Jahrgang usw.). Wir speichern die Fotos dabei nicht. Google verarbeitet sie nach den Bedingungen der Gemini-API;
-    für die kostenpflichtige API gibt Google an, die Inhalte nicht zum Training seiner Modelle zu verwenden.
-    Ohne Scan werden keine Fotos übertragen – du kannst Weine jederzeit auch manuell anlegen.
-    Rechtsgrundlage ist die Durchführung der von dir angeforderten Funktion (Art. 6 Abs. 1 lit. b DSGVO).
+    Server bei Netlify. Dieser leitet sie zur Auswertung an die kostenpflichtige Gemini-API von Google weiter und gibt dir das Ergebnis zurück
+    (Name, Weingut, Jahrgang usw.). Wir selbst speichern die Fotos dabei nicht. Ohne Scan werden keine Fotos übertragen – du kannst Weine
+    jederzeit auch manuell anlegen. Bitte fotografiere nur das Etikett und keine Personen.
+  </p>
+  <p>
+    Google verwendet die Inhalte nach eigenen Angaben nicht zur Verbesserung seiner Produkte, speichert Anfragen und Antworten aber bis zu
+    55 Tage, um Missbrauch zu erkennen. Dabei kann es zu einer Verarbeitung in den USA kommen; Google LLC ist nach dem EU-US Data Privacy
+    Framework zertifiziert. Grundlage ist der Vertrag zur Auftragsverarbeitung von Google (Art. 28 DSGVO).
+    Rechtsgrundlage für den Scan ist die Bereitstellung der von dir angeforderten Funktion (Art. 6 Abs. 1 lit. b DSGVO).
     Mehr dazu: <a href="https://policies.google.com/privacy" rel="noopener">Datenschutzerklärung von Google</a>.
   </p>
 
   <h2>Begrenzung der Scans</h2>
   <p>
     Damit der Scan-Dienst nicht missbraucht wird, zählt unser Server, wie viele Scans pro Stunde von einem Internetanschluss kommen.
-    Dafür speichern wir keinen Klartext, sondern nur einen gekürzten Hash-Wert deiner IP-Adresse zusammen mit einer Zahl.
-    Diese Einträge werden spätestens am Folgetag gelöscht. Zusätzlich zählen wir die Scans pro Tag insgesamt, ohne Bezug zu einer Person.
+    Dafür speichern wir keinen Klartext, sondern nur einen gekürzten Hash-Wert deiner IP-Adresse zusammen mit einer Zahl, im
+    Netlify-Rechenzentrum in Frankfurt. Diese Einträge werden stündlich automatisch gelöscht und sind damit höchstens etwa zwei Stunden
+    gespeichert. Zusätzlich zählen wir die Scans pro Tag insgesamt, ohne Bezug zu einer Person.
     Rechtsgrundlage ist unser berechtigtes Interesse, Missbrauch und unkontrollierte Kosten zu verhindern (Art. 6 Abs. 1 lit. f DSGVO).
   </p>
 
@@ -82,7 +92,7 @@
   <p>
     Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch
     (Art. 15–21 DSGVO). Schreib dazu einfach an die oben genannte E-Mail-Adresse. Außerdem kannst du dich bei einer
-    Datenschutz-Aufsichtsbehörde beschweren.
+    Datenschutz-Aufsichtsbehörde beschweren. Eine automatisierte Entscheidungsfindung oder ein Profiling findet nicht statt.
   </p>
 </main>
 </body>
