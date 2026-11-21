@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Wine } from '../../core/entities/Wine';
 import { IndexedDBWineRepository } from '../../infrastructure/db/IndexedDBWineRepository';
-import { GeminiService } from '../../core/services/GeminiService';
+import { GeminiService, ScanError } from '../../core/services/GeminiService';
 
 const repository = new IndexedDBWineRepository();
 const geminiService = new GeminiService();
+
+const AUTO_RETRY_PAUSE_MS = 5 * 60 * 1000;
 
 export interface QueueItem {
   id: string;
@@ -27,7 +29,9 @@ interface VintoryContextType {
   onlineStatus: boolean;
   addScanToQueue: (frontImage: string, backImage: string | null) => Promise<void>;
   deleteQueueItem: (id: string) => Promise<void>;
-  processQueue: () => Promise<void>;
+  /** Processes pending scans. With retryFailed, previously failed scans are tried again too. */
+  processQueue: (options?: { retryFailed?: boolean }) => Promise<void>;
+  isProcessingQueue: boolean;
   notifications: string[];
   removeNotification: (index: number) => void;
 }
@@ -43,6 +47,11 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [onlineStatus, setOnlineStatus] = useState<boolean>(navigator.onLine);
   const [notifications, setNotifications] = useState<string[]>([]);
   const [isProcessingQueue, setIsProcessingQueue] = useState<boolean>(false);
+  // Synchronous lock: React state updates are async, so a state flag alone
+  // cannot stop two processQueue calls that start at nearly the same time.
+  const processingRef = useRef(false);
+  // After a temporary error, automatic runs wait a bit instead of retrying right away.
+  const autoPausedUntilRef = useRef(0);
 
   useEffect(() => {
     const initApp = async () => {
@@ -68,9 +77,13 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const list = await repository.getAll();
         setWines(list);
 
-        // 3. Load scan queue items
-        const queueList = await repository.getQueueItems();
-        setQueueItems(queueList);
+        // 3. Load scan queue items.
+        // Items still marked 'processing' were interrupted (tab closed mid-scan):
+        // put them back to 'pending' so they are not stuck forever.
+        const queueList = (await repository.getQueueItems()) as QueueItem[];
+        const interrupted = queueList.filter((item) => item.status === 'processing');
+        await Promise.all(interrupted.map((item) => repository.saveQueueItem({ ...item, status: 'pending' })));
+        setQueueItems(interrupted.length > 0 ? await repository.getQueueItems() : queueList);
       } catch (err) {
         console.error("Vintory initialization failed:", err);
       } finally {
@@ -82,31 +95,6 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   // Monitor online status & trigger auto queue processor when online
-  useEffect(() => {
-    const handleOnline = () => {
-      setOnlineStatus(true);
-      setNotifications(prev => [...prev, "Verbindung wiederhergestellt! Verarbeite Warteschlange..."]);
-      processQueue();
-    };
-    
-    const handleOffline = () => {
-      setOnlineStatus(false);
-      setNotifications(prev => [...prev, "Offline-Modus aktiv. Scans werden lokal gespeichert."]);
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Initial check
-    if (navigator.onLine && queueItems.length > 0) {
-      processQueue();
-    }
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [queueItems.length]);
 
   const saveWine = async (wine: Wine) => {
     await repository.save(wine);
@@ -181,28 +169,55 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setQueueItems(updated);
   };
 
-  const processQueue = async () => {
-    // Avoid double processing, and require an online status
-    if (isProcessingQueue || !navigator.onLine) return;
-    
-    const items = await repository.getQueueItems();
-    if (items.length === 0) return;
-    
+  // Processes the scan queue one item at a time.
+  // - Automatic runs only take 'pending' items; 'failed' items are retried only
+  //   when the user explicitly asks (retryFailed), so they don't burn scans.
+  // - Temporary errors (offline, scan limit, server down) keep the item 'pending'
+  //   and pause the run – retrying the rest right now would fail the same way.
+  // - Permanent errors (unreadable label) mark the item 'failed'.
+  const processQueue = useCallback(async ({ retryFailed = false }: { retryFailed?: boolean } = {}) => {
+    if (processingRef.current || !navigator.onLine) return;
+    processingRef.current = true;
     setIsProcessingQueue(true);
-    console.log(`Processing scan queue of ${items.length} items...`);
-    
-    for (const item of items) {
-      try {
-        // Update state status to processing
+
+    let addedWines = 0;
+    try {
+      const items = (await repository.getQueueItems()) as QueueItem[];
+      const todo = items
+        .filter((item) => item.status === 'pending' || (retryFailed && item.status === 'failed'))
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+      for (const item of todo) {
         await repository.saveQueueItem({ ...item, status: 'processing' });
-        
-        const wineData = await geminiService.analyzeLabel(item.frontImage, item.backImage || undefined);
-        
-        // Save the newly analyzed wine!
+
+        let wineData;
+        try {
+          wineData = await geminiService.analyzeLabel(item.frontImage, item.backImage || undefined);
+        } catch (err) {
+          console.error(`Failed to process queue item ${item.id}:`, err);
+          if (err instanceof ScanError && err.retryable) {
+            await repository.saveQueueItem({ ...item, status: 'pending' });
+            autoPausedUntilRef.current = Date.now() + AUTO_RETRY_PAUSE_MS;
+            setNotifications((prev) => [
+              ...prev,
+              err.limitReached
+                ? `Warteschlange pausiert: ${err.message}`
+                : 'Warteschlange pausiert – der Scan-Dienst ist gerade nicht erreichbar. Deine Scans bleiben gespeichert.',
+            ]);
+            break;
+          }
+          await repository.saveQueueItem({ ...item, status: 'failed' });
+          setNotifications((prev) => [
+            ...prev,
+            'Ein gespeicherter Scan konnte nicht ausgewertet werden. Tippe auf „Warteschlange“, um es erneut zu versuchen.',
+          ]);
+          continue;
+        }
+
         const newWine: Wine = {
           id: Math.random().toString(36).substring(2, 9),
           name: wineData.name || 'Unbekannter Wein',
-          type: (wineData.type as any) || 'Rotwein',
+          type: wineData.type || 'Rotwein',
           year: wineData.year || null,
           winery: wineData.winery || 'Unbekanntes Weingut',
           region: wineData.region || 'Region unbekannt',
@@ -211,33 +226,58 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
           quantity: 1,
           rating: 3,
           image: item.frontImage,
-          isFavorite: false
+          isFavorite: false,
         };
-        
+
         await repository.save(newWine);
         await repository.deleteQueueItem(item.id);
-        
-        setNotifications(prev => [
-          ...prev, 
-          `Hintergrund-Scan erfolgreich! "${newWine.name}" wurde in deinen Keller gelegt.`
+        addedWines++;
+
+        setNotifications((prev) => [
+          ...prev,
+          `Hintergrund-Scan erfolgreich! "${newWine.name}" wurde in deinen Keller gelegt.`,
         ]);
-        
-      } catch (err) {
-        console.error(`Failed to process queue item ${item.id}:`, err);
-        // Mark as failed so we don't try in an infinite loop
-        await repository.saveQueueItem({ ...item, status: 'failed' });
       }
+    } catch (err) {
+      console.error('Processing the scan queue failed:', err);
+    } finally {
+      setQueueItems(await repository.getQueueItems());
+      if (addedWines > 0) {
+        setWines(await repository.getAll());
+      }
+      processingRef.current = false;
+      setIsProcessingQueue(false);
     }
-    
-    // Refresh states
-    const updatedQueue = await repository.getQueueItems();
-    setQueueItems(updatedQueue);
-    
-    const updatedWines = await repository.getAll();
-    setWines(updatedWines);
-    
-    setIsProcessingQueue(false);
-  };
+  }, []);
+
+  // Online/offline handling: resume the queue when the connection comes back.
+  useEffect(() => {
+    const handleOnline = () => {
+      setOnlineStatus(true);
+      setNotifications((prev) => [...prev, 'Verbindung wiederhergestellt! Verarbeite Warteschlange...']);
+      processQueue();
+    };
+    const handleOffline = () => {
+      setOnlineStatus(false);
+      setNotifications((prev) => [...prev, 'Offline-Modus aktiv. Scans werden lokal gespeichert.']);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [processQueue]);
+
+  // Process automatically after start-up and whenever new pending scans are added.
+  // Depends on the pending count only, so a paused run (items stay pending) does not loop.
+  const pendingCount = queueItems.filter((item) => item.status === 'pending').length;
+  useEffect(() => {
+    if (!loading && pendingCount > 0 && navigator.onLine && Date.now() >= autoPausedUntilRef.current) {
+      processQueue();
+    }
+  }, [loading, pendingCount, processQueue]);
 
   const removeNotification = (index: number) => {
     setNotifications(prev => prev.filter((_, i) => i !== index));
@@ -257,6 +297,7 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       addScanToQueue,
       deleteQueueItem,
       processQueue,
+      isProcessingQueue,
       notifications,
       removeNotification
     }}>

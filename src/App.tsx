@@ -33,9 +33,12 @@ const VintoryAppContent: React.FC = () => {
     queueItems,
     onlineStatus,
     processQueue,
+    isProcessingQueue,
     notifications,
     removeNotification
   } = useVintory();
+
+  const failedQueueCount = queueItems.filter((item) => item.status === 'failed').length;
 
   // PWA SW Register Hook for prompt updates
   const {
@@ -226,16 +229,25 @@ const VintoryAppContent: React.FC = () => {
           {/* Offline Scan Queue Badge */}
           {queueItems.length > 0 && (
             <button
-              onClick={processQueue}
-              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-xl animate-pulse cursor-pointer shadow-sm transition-all"
-              title={`${queueItems.length} Scans ausstehend. Klicken zum manuellen Synchronisieren.`}
-              disabled={!onlineStatus}
+              onClick={() => processQueue({ retryFailed: true })}
+              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-400 text-xs font-bold rounded-xl animate-pulse cursor-pointer shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:animate-none"
+              title={
+                isProcessingQueue
+                  ? 'Scans werden gerade ausgewertet...'
+                  : failedQueueCount > 0
+                    ? `${queueItems.length} Scans gespeichert, davon ${failedQueueCount} fehlgeschlagen. Klicken, um alle erneut zu versuchen.`
+                    : `${queueItems.length} Scans ausstehend. Klicken zum manuellen Synchronisieren.`
+              }
+              disabled={!onlineStatus || isProcessingQueue}
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
-              Warteschlange ({queueItems.length})
+              {isProcessingQueue ? 'Wird ausgewertet...' : `Warteschlange (${queueItems.length})`}
+              {!isProcessingQueue && failedQueueCount > 0 && (
+                <span className="text-red-400">· {failedQueueCount} fehlgeschlagen</span>
+              )}
             </button>
           )}
         </div>
