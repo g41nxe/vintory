@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { Wine, generateWineId } from '../../core/entities/Wine';
+import { Wine, generateWineId, withWineDefaults } from '../../core/entities/Wine';
 import { getNewWineOwnedDefault } from '../preferences';
 import { IndexedDBWineRepository } from '../../infrastructure/db/IndexedDBWineRepository';
 import { GeminiService, ScanError } from '../../core/services/GeminiService';
@@ -82,8 +82,16 @@ export const VintoryProvider: React.FC<{ children: React.ReactNode }> = ({ child
           try {
             const oldWines = JSON.parse(oldData);
             if (Array.isArray(oldWines) && oldWines.length > 0) {
-              console.log(`Migrating ${oldWines.length} wines to IndexedDB...`);
-              await repository.saveBatch(oldWines);
+              // Merge, never replace: wines already in IndexedDB must survive (ADR 0003).
+              const existing = await repository.getAll();
+              const toAdd = winesToAddOnMerge(
+                existing,
+                oldWines
+                  .filter((w) => w && typeof w === 'object' && !Array.isArray(w))
+                  .map((w) => withWineDefaults(w as Record<string, unknown>))
+              );
+              console.log(`Migrating ${toAdd.length} of ${oldWines.length} wines from localStorage to IndexedDB...`);
+              await repository.saveMany(toAdd);
             }
             localStorage.removeItem('vintory_wines');
           } catch (err) {

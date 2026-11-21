@@ -72,26 +72,32 @@ const asTags = (value: unknown): string[] => {
 };
 
 /**
- * Fills every missing or malformed field with a default. Never drops data:
- * used when reading stored wines (older app versions didn't have merchant,
- * comment, tags or tastedAt) and when importing backups. Only changes the
- * in-memory object – nothing is written back by itself (ADR 0003).
+ * Makes a stored or imported record usable as a Wine. Used when reading stored
+ * wines (older app versions lack merchant, comment, tags and tastedAt; v1 stored
+ * the year as text) and when importing backups. Only changes the in-memory object –
+ * nothing is written back by itself (ADR 0003). Rules, because the result is what
+ * gets written the next time the wine is saved:
+ * - unknown extra fields are kept unchanged,
+ * - valid values are kept as they are; only missing/unusable values get a default,
+ * - type conversions are lossless („2018“ → 2018, 45 → „45“).
  */
 export const withWineDefaults = (raw: Record<string, unknown>): Wine => {
-  const year = raw.year === null || raw.year === undefined || raw.year === '' ? null : asNumber(raw.year, NaN);
+  const yearNumber = raw.year === null || raw.year === undefined || raw.year === '' ? null : asNumber(raw.year, NaN);
+  const quantity = asNumber(raw.quantity, 1);
   return {
+    ...raw,
     id: asString(raw.id).trim() || generateWineId(),
     name: asString(raw.name),
     type: asString(raw.type) || 'Rotwein',
-    year: year !== null && Number.isFinite(year) ? Math.round(year) : null,
+    year: yearNumber !== null && Number.isFinite(yearNumber) ? yearNumber : null,
     winery: asString(raw.winery),
     region: asString(raw.region),
     grape: asString(raw.grape),
     price: asString(raw.price),
-    quantity: Math.max(0, Math.round(asNumber(raw.quantity, 1))),
-    rating: Math.min(5, Math.max(0, asNumber(raw.rating, 3))),
+    quantity: quantity >= 0 ? quantity : 0,
+    rating: asNumber(raw.rating, 3),
     image: asString(raw.image),
-    isFavorite: raw.isFavorite === true,
+    isFavorite: raw.isFavorite === true || raw.isFavorite === 'true',
     merchant: asString(raw.merchant),
     comment: asString(raw.comment),
     tags: asTags(raw.tags),
